@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apprentissage Espagnol pour Clémence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card { perspective: 1000px; }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .card.is-flipped .card-inner { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .card-back { transform: rotateY(180deg); }
+        .mode-btn {
+            border: 1px solid #d1d5db;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            background-color: white;
+        }
+        .mode-btn.active {
+            background-color: #3b82f6; /* bg-blue-600 */
+            color: white;
+            border-color: #3b82f6;
+        }
+        .qcm-option-btn {
+            transition: all 0.2s;
+            border: 1px solid #d1d5db;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
+
+    <div id="app" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <main class="lg:col-span-2 space-y-6">
+            <header class="text-center">
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Apprentissage d'Espagnol</h1>
+            </header>
+            
+            <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap">
+                <button data-mode="mix" class="mode-btn">🚀 Mix</button>
+                <button data-mode="flashcard-es-fr" class="mode-btn">🇪🇸 → 🇫🇷 Flashcard</button>
+                <button data-mode="flashcard-fr-es" class="mode-btn">🇫🇷 → 🇪🇸 Flashcard</button>
+                <button data-mode="qcm" class="mode-btn">🧠 QCM</button>
+            </div>
+            
+            <div id="exercise-container" class="h-64 sm:h-72">
+                <!-- L'exercice (carte ou QCM) sera injecté ici -->
+            </div>
+            
+            <div id="answer-section" class="mt-4 space-y-3 min-h-[120px]">
+                <input type="text" id="answer-input" placeholder="Écrivez la traduction ici..." autocomplete="off" class="w-full max-w-md mx-auto block p-3 border border-gray-300 rounded-lg text-center text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <div id="qcm-options" class="flex flex-col items-center gap-3 w-full max-w-md mx-auto"></div>
+                <div id="feedback" class="text-center h-6 font-semibold pt-2"></div>
+            </div>
+
+            <div id="controls" class="flex justify-center gap-4 flex-wrap">
+                 <button id="check-btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105">
+                    Vérifier
+                </button>
+                <button id="next-btn" class="hidden bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
+                    Mot Suivant ➡️
+                </button>
+            </div>
+        </main>
+
+        <aside class="space-y-8">
+            <div>
+                <h2 class="text-2xl font-semibold mb-4 text-blue-600">Tableau de Bord</h2>
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow">
+                        <h3 class="font-bold mb-2 text-orange-500">🧠 Mots à apprendre</h3>
+                        <ul id="words-to-learn" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow">
+                        <h3 class="font-bold mb-2 text-green-500">🏆 Mots maîtrisés</h3>
+                        <ul id="words-learned" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-semibold mb-4 text-blue-600">Lien Google Sheet</h2>
+                 <div class="bg-white p-4 rounded-xl shadow">
+                    <p class="text-sm text-gray-600 mb-2">
+                        Publiez votre Google Sheet sur le web (format CSV) et collez le lien ici.
+                    </p>
+                    <input type="url" id="sheet-url-input" placeholder="https://docs.google.com/..." class="w-full border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button id="load-sheet-btn" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
+                        Charger la liste
+                    </button>
+                    <p id="sheet-feedback" class="text-xs text-center mt-2 h-4"></p>
+                 </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const state = {
+                words: [],
+                currentWordIndex: null,
+                learnedThreshold: 3,
+                exerciseMode: 'mix', // 'mix', 'flashcard-es-fr', 'flashcard-fr-es', 'qcm'
+                currentQuestion: {}, // { type, word, options, answer }
+            };
+
+            const exerciseContainer = document.getElementById('exercise-container');
+            const wordsToLearnList = document.getElementById('words-to-learn');
+            const wordsLearnedList = document.getElementById('words-learned');
+            const sheetUrlInput = document.getElementById('sheet-url-input');
+            const loadSheetBtn = document.getElementById('load-sheet-btn');
+            const sheetFeedback = document.getElementById('sheet-feedback');
+            const answerInput = document.getElementById('answer-input');
+            const qcmOptionsContainer = document.getElementById('qcm-options');
+            const feedback = document.getElementById('feedback');
+            const checkBtn = document.getElementById('check-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const modeButtons = document.querySelectorAll('.mode-btn');
+
+            const saveState = () => {
+                const sheetUrl = localStorage.getItem('spanishAppSheetUrl');
+                if (sheetUrl) {
+                    localStorage.setItem(`spanishAppProgress_${sheetUrl}`, JSON.stringify(state.words));
+                }
+            };
+
+            const loadState = (sheetData) => {
+                 const sheetUrl = localStorage.getItem('spanishAppSheetUrl');
+                 const savedProgress = sheetUrl ? localStorage.getItem(`spanishAppProgress_${sheetUrl}`) : null;
+                 if (savedProgress) {
+                     const progress = JSON.parse(savedProgress);
+                     state.words = sheetData.map(sheetWord => {
+                         const matchingProgress = progress.find(p => p.spanish === sheetWord.spanish);
+                         return matchingProgress || { ...sheetWord, count: 0 };
+                     });
+                 } else {
+                     state.words = sheetData.map(word => ({ ...word, count: 0 }));
+                 }
+            };
+            
+             const fetchAndParseSheet = async (url) => {
+                sheetFeedback.textContent = 'Chargement...';
+                sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-gray-500';
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+                    const csvText = await response.text();
+                    const rows = csvText.split('\n').slice(1);
+                    const newWords = rows.map(row => {
+                        const columns = row.split(',');
+                        if (columns.length >= 3 && columns[1] && columns[2]) {
+                            return { 
+                                spanish: columns[1].trim().replace(/"/g, ''), 
+                                french: columns[2].trim().replace(/"/g, ''),
+                            };
+                        }
+                        return null;
+                    }).filter(Boolean);
+
+                    if (newWords.length > 0) {
+                        localStorage.setItem('spanishAppSheetUrl', url);
+                        loadState(newWords);
+                        saveState();
+                        sheetFeedback.textContent = `✅ ${newWords.length} mots chargés !`;
+                        sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-green-600';
+                         setTimeout(() => { sheetFeedback.textContent = '' }, 3000);
+                        restartApp();
+                    } else {
+                         throw new Error("Aucun mot valide trouvé.");
+                    }
+                } catch (error) {
+                    console.error('Erreur de chargement du Google Sheet:', error);
+                    sheetFeedback.textContent = `❌ Erreur. Vérifiez le lien.`;
+                    sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-red-600';
+                }
+            };
+            
+            const renderDashboard = () => {
+                wordsToLearnList.innerHTML = '';
+                wordsLearnedList.innerHTML = '';
+                if (state.words.length === 0) {
+                     wordsToLearnList.innerHTML = `<li class="text-gray-500">Chargez une liste.</li>`;
+                     return;
+                }
+                const toLearn = state.words.filter(w => w.count < state.learnedThreshold);
+                const learned = state.words.filter(w => w.count >= state.learnedThreshold);
+                toLearn.sort((a, b) => a.count - b.count || a.spanish.localeCompare(b.spanish));
+                learned.sort((a, b) => b.count - a.count || a.spanish.localeCompare(b.spanish));
+                
+                const createLi = (word, colorClass) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center';
+                    li.innerHTML = `<span>${word.spanish}</span><span class="text-xs font-mono ${colorClass} rounded-full px-2 py-0.5">${word.count}</span>`;
+                    return li;
+                };
+                toLearn.forEach(w => wordsToLearnList.appendChild(createLi(w, 'bg-orange-100 text-orange-700')));
+                learned.forEach(w => wordsLearnedList.appendChild(createLi(w, 'bg-green-100 text-green-700')));
+                
+                if(learned.length === 0) wordsLearnedList.innerHTML = `<li class="text-gray-400">Aucun mot maîtrisé.</li>`;
+                if(toLearn.length === 0 && state.words.length > 0) wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
+            };
+
+            const renderExercise = () => {
+                // Reset UI
+                answerInput.value = '';
+                answerInput.style.display = 'none';
+                qcmOptionsContainer.innerHTML = '';
+                feedback.innerHTML = '';
+                checkBtn.classList.add('hidden');
+                nextBtn.classList.add('hidden');
+                
+                const question = state.currentQuestion;
+                if (!question.word) {
+                    exerciseContainer.innerHTML = `<div class="card-face bg-green-200 text-green-800 text-xl font-bold">Félicitations ! Session terminée.</div>`;
+                    return;
+                }
+
+                switch (question.type) {
+                    case 'flashcard-es-fr':
+                    case 'flashcard-fr-es':
+                        renderFlashcard(question);
+                        break;
+                    case 'qcm':
+                        renderQCM(question);
+                        break;
+                }
+            };
+            
+            const renderFlashcard = (question) => {
+                const [questionText, answerText] = question.type === 'flashcard-es-fr'
+                    ? [question.word.spanish, question.word.french]
+                    : [question.word.french, question.word.spanish];
+
+                answerInput.style.display = 'block';
+                answerInput.disabled = false;
+                checkBtn.classList.remove('hidden');
+                answerInput.focus();
+                
+                exerciseContainer.innerHTML = `
+                    <div class="card w-full h-full">
+                        <div class="card-inner">
+                            <div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold">${questionText}</div>
+                            <div class="card-face card-back bg-purple-200 text-purple-800 text-xl md:text-2xl font-semibold">${answerText}</div>
+                        </div>
+                    </div>`;
+            };
+            
+            const renderQCM = (question) => {
+                exerciseContainer.innerHTML = `<div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold">${question.word.spanish}</div>`;
+                question.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.className = "w-full p-3 border bg-white rounded-lg shadow-sm hover:bg-gray-100 qcm-option-btn";
+                    button.addEventListener('click', () => handleAnswer(option));
+                    qcmOptionsContainer.appendChild(button);
+                });
+            };
+
+            const selectNextWord = () => {
+                const wordsToLearn = state.words
+                    .map((word, index) => ({ ...word, originalIndex: index }))
+                    .filter(word => word.count < state.learnedThreshold);
+                if (wordsToLearn.length === 0) {
+                    state.currentWordIndex = null;
+                    return;
+                }
+                wordsToLearn.sort((a,b) => a.count - b.count);
+                const minCount = wordsToLearn[0].count;
+                const leastSeenWords = wordsToLearn.filter(word => word.count === minCount);
+                const randomIndex = Math.floor(Math.random() * leastSeenWords.length);
+                state.currentWordIndex = leastSeenWords[randomIndex].originalIndex;
+            };
+
+            const startNextExercise = () => {
+                selectNextWord();
+                if (state.currentWordIndex === null) {
+                    state.currentQuestion = {};
+                    renderExercise();
+                    return;
+                }
+
+                let exerciseType = state.exerciseMode;
+                if (exerciseType === 'mix') {
+                    const types = ['flashcard-es-fr', 'flashcard-fr-es', 'qcm'];
+                    exerciseType = types[Math.floor(Math.random() * types.length)];
+                }
+                
+                state.currentQuestion = { type: exerciseType, word: state.words[state.currentWordIndex] };
+
+                if (exerciseType === 'qcm') {
+                    const correctWord = state.currentQuestion.word;
+                    const distractors = [];
+                    const wordPool = state.words.filter(w => w.spanish !== correctWord.spanish);
+                    while (distractors.length < 3 && wordPool.length > 0) {
+                        const randIdx = Math.floor(Math.random() * wordPool.length);
+                        distractors.push(wordPool.splice(randIdx, 1)[0]);
+                    }
+                    const options = [correctWord, ...distractors].map(w => w.french);
+                    state.currentQuestion.options = options.sort(() => Math.random() - 0.5);
+                }
+                renderExercise();
+            };
+            
+            const normalizeUserAnswer = (answer) => answer.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,!?¿]/g, '').trim().replace(/\s+/g, ' ');
+
+            const getPossibleAnswers = (frenchAnswer) => {
+                let base = frenchAnswer.toLowerCase().trim();
+                let alternatives = base.split(/\s*\/\s*/);
+                let finalAnswers = [];
+                alternatives.forEach(alt => {
+                    const match = alt.match(/(.*)\((.+)\)$/); 
+                    if (match) {
+                        finalAnswers.push(match[1].trim());
+                        finalAnswers.push(match[1].trim() + match[2]);
+                    } else {
+                        finalAnswers.push(alt.trim());
+                    }
+                });
+                return finalAnswers.map(ans => normalizeUserAnswer(ans));
+            };
+
+            const handleAnswer = (userAnswer) => {
+                answerInput.disabled = true;
+                checkBtn.classList.add('hidden');
+                document.querySelectorAll('.qcm-option-btn').forEach(btn => btn.disabled = true);
+
+                const { type, word } = state.currentQuestion;
+                let isCorrect = false;
+                let correctAnswerText = '';
+
+                if (type === 'flashcard-es-fr' || type === 'qcm') {
+                    correctAnswerText = word.french;
+                    const possibleCorrect = getPossibleAnswers(correctAnswerText);
+                    isCorrect = possibleCorrect.includes(normalizeUserAnswer(userAnswer));
+                } else if (type === 'flashcard-fr-es') {
+                    correctAnswerText = word.spanish;
+                    isCorrect = normalizeUserAnswer(userAnswer) === normalizeUserAnswer(correctAnswerText);
+                }
+
+                if (isCorrect) {
+                    word.count++;
+                    feedback.textContent = 'Correct ! 👍';
+                    feedback.className = 'text-center h-6 font-semibold pt-2 text-green-600';
+                } else {
+                    word.count = 0;
+                    feedback.innerHTML = `Incorrect. C'était : <strong class="text-blue-600">${correctAnswerText}</strong>`;
+                    feedback.className = 'text-center h-6 font-semibold pt-2 text-red-600';
+                }
+                
+                if (type === 'qcm') {
+                    document.querySelectorAll('.qcm-option-btn').forEach(btn => {
+                        if (btn.textContent === correctAnswerText) btn.className += ' bg-green-200 border-green-500';
+                        else if (btn.textContent === userAnswer && !isCorrect) btn.className += ' bg-red-200 border-red-500';
+                    });
+                } else {
+                    exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
+                }
+                
+                nextBtn.classList.remove('hidden');
+                nextBtn.focus();
+                saveState();
+                renderDashboard();
+            };
+            
+            const restartApp = () => {
+                renderDashboard();
+                startNextExercise();
+            };
+
+            const init = async () => {
+                const userProvidedUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxY8JQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
+                sheetUrlInput.value = userProvidedUrl;
+                
+                document.querySelector(`[data-mode="${state.exerciseMode}"]`).classList.add('active');
+                
+                await fetchAndParseSheet(userProvidedUrl);
+            };
+            
+            checkBtn.addEventListener('click', () => handleAnswer(answerInput.value));
+            nextBtn.addEventListener('click', startNextExercise);
+            loadSheetBtn.addEventListener('click', () => { if (sheetUrlInput.value.trim()) fetchAndParseSheet(sheetUrlInput.value.trim()); });
+            
+            modeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    state.exerciseMode = button.dataset.mode;
+                    modeButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    restartApp();
+                });
+            });
+
+            document.addEventListener('keyup', (event) => {
+                if (event.key !== 'Enter') return;
+                if (!checkBtn.classList.contains('hidden')) handleAnswer(answerInput.value);
+                else if (!nextBtn.classList.contains('hidden')) startNextExercise();
+            });
+            
+            init();
+        });
+    </script>
+</body>
+</html>
