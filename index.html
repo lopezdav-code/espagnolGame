@@ -49,22 +49,48 @@
             color: white;
             border-color: #3b82f6;
         }
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
         .tab-btn {
-            border: 1px solid #d1d5db;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem 0.5rem 0 0;
-            font-weight: 500;
-            transition: all 0.2s;
-            background-color: white;
-            border-bottom: none;
+            position: relative;
+            padding: 1rem 2rem;
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+        .tab-btn:hover {
+            color: #3b82f6;
+            background-color: #f1f5f9;
         }
         .tab-btn.active {
-            background-color: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: white;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px 3px 0 0;
         }
         .tab-content {
             display: none;
+            background: white;
+            border-radius: 0 0 1rem 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
         }
         .tab-content.active {
             display: block;
@@ -200,6 +226,21 @@
             font-size: 0.875rem;
             color: #475569;
         }
+        .date-badge {
+            background-color: #e0e7ff;
+            color: #3730a3;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+        }
+        .filter-controls {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
@@ -251,27 +292,37 @@
                 </div>
             </header>
 
-            <!-- Onglets -->
-            <div class="flex justify-center">
-                <div class="flex border-b border-gray-300">
-                    <button id="tab-exercise" class="tab-btn active">🎯 Exercices</button>
-                    <button id="tab-wordlist" class="tab-btn">📝 Liste des mots</button>
-                </div>
+            <!-- Onglets améliorés -->
+            <div class="tab-container">
+                <button id="tab-exercise" class="tab-btn active">🎯 Exercices</button>
+                <button id="tab-wordlist" class="tab-btn">📝 Liste des mots</button>
             </div>
 
             <!-- Contenu onglet Exercices -->
-            <div id="content-exercise" class="tab-content active space-y-6">
-                <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap">
+            <div id="content-exercise" class="tab-content active">
+                <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap mb-6">
                     <button data-mode="mix" class="mode-btn">🚀 Mix</button>
                     <button data-mode="flashcard-es-fr" class="mode-btn">🇪🇸 → 🇫🇷 Flashcard</button>
                     <button data-mode="flashcard-fr-es" class="mode-btn">🇫🇷 → 🇪🇸 Flashcard</button>
                     <button data-mode="qcm" class="mode-btn">🧠 QCM</button>
                 </div>
 
-                <div class="flex justify-center gap-2 flex-wrap">
+                <div class="flex justify-center gap-2 flex-wrap mb-6">
                     <button id="review-filter-btn" class="filter-btn">🎯 Réviser uniquement les mots à réviser</button>
                     <button id="correct-filter-btn" class="filter-btn">✅ Réviser uniquement les mots corrects</button>
                     <button id="custom-filter-btn" class="filter-btn">⭐ Réviser uniquement mes mots choisis</button>
+                </div>
+
+                <!-- Filtre par date -->
+                <div class="filter-controls">
+                    <div class="flex flex-wrap items-center justify-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label for="date-filter" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
+                            <input type="date" id="date-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <button id="clear-date-filter" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
+                        </div>
+                        <button id="sort-by-date" class="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">📅 Trier par date</button>
+                    </div>
                 </div>
 
                 <!-- Aide clavier -->
@@ -313,22 +364,20 @@
             </div>
 
             <!-- Contenu onglet Liste des mots -->
-            <div id="content-wordlist" class="tab-content space-y-4">
-                <div class="bg-white p-6 rounded-xl shadow">
-                    <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
-                    <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
-                    
-                    <div class="space-y-2 max-h-96 overflow-y-auto">
-                        <div id="words-list-container">
-                            <!-- Les mots seront injectés ici -->
-                        </div>
+            <div id="content-wordlist" class="tab-content">
+                <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
+                <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
+                
+                <div class="space-y-2 max-h-96 overflow-y-auto mb-6">
+                    <div id="words-list-container">
+                        <!-- Les mots seront injectés ici -->
                     </div>
-                    
-                    <div class="mt-4 text-center">
-                        <button id="save-custom-selection" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">
-                            💾 Sauvegarder ma sélection
-                        </button>
-                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <button id="save-custom-selection" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">
+                        💾 Sauvegarder ma sélection
+                    </button>
                 </div>
             </div>
         </main>
@@ -394,6 +443,7 @@
                         <table class="w-full text-sm">
                             <thead class="bg-gray-100 sticky top-0">
                                 <tr>
+                                    <th class="text-left p-2 border-b">Date</th>
                                     <th class="text-left p-2 border-b">Espagnol</th>
                                     <th class="text-left p-2 border-b">Français</th>
                                     <th class="text-center p-2 border-b">Niveau</th>
@@ -425,7 +475,7 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.5 - 15/01/2025 15:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.6 - 15/01/2025 16:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -445,6 +495,8 @@
                 sessionMistakes: [], // Mots ratés pendant cette session
                 sessionCorrect: [], // Mots corrects pendant cette session
                 customSelection: [], // Mots sélectionnés manuellement par l'enfant
+                dateFilter: null, // Filtre par date
+                sortByDateAsc: true, // Tri par date croissant ou décroissant
                 sessionStats: {
                     total: 0,
                     correct: 0,
@@ -492,6 +544,11 @@
             const wordsTableBody = document.getElementById('words-table-body');
             const wordsListContainer = document.getElementById('words-list-container');
             const saveCustomSelectionBtn = document.getElementById('save-custom-selection');
+            
+            // Nouveaux éléments pour les dates
+            const dateFilterInput = document.getElementById('date-filter');
+            const clearDateFilterBtn = document.getElementById('clear-date-filter');
+            const sortByDateBtn = document.getElementById('sort-by-date');
 
             // Éléments onglets
             const tabExercise = document.getElementById('tab-exercise');
@@ -518,6 +575,47 @@
             const sessionAccepted = document.getElementById('session-accepted');
 
             let timerInterval = null;
+
+            // Fonctions utilitaires pour les dates
+            const formatDate = (dateString) => {
+                if (!dateString) return 'Sans date';
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString('fr-FR');
+                } catch (e) {
+                    return dateString;
+                }
+            };
+
+            const parseDate = (dateString) => {
+                if (!dateString) return null;
+                try {
+                    return new Date(dateString);
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            // Filtrage des mots par date
+            const filterWordsByDate = (words) => {
+                if (!state.dateFilter) return words;
+                return words.filter(word => {
+                    if (!word.date) return false;
+                    const wordDate = parseDate(word.date);
+                    const filterDate = parseDate(state.dateFilter);
+                    if (!wordDate || !filterDate) return false;
+                    return wordDate.toDateString() === filterDate.toDateString();
+                });
+            };
+
+            // Tri des mots par date
+            const sortWordsByDate = (words) => {
+                return [...words].sort((a, b) => {
+                    const dateA = parseDate(a.date) || new Date(0);
+                    const dateB = parseDate(b.date) || new Date(0);
+                    return state.sortByDateAsc ? dateA - dateB : dateB - dateA;
+                });
+            };
 
             // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER
             const handleKeyboard = (event) => {
@@ -626,6 +724,30 @@
             tabExercise.addEventListener('click', () => switchTab('exercise'));
             tabWordlist.addEventListener('click', () => switchTab('wordlist'));
 
+            // Gestion des filtres de date
+            dateFilterInput.addEventListener('change', (e) => {
+                state.dateFilter = e.target.value || null;
+                renderWordsList();
+                renderWordsTable();
+                renderDashboard();
+            });
+
+            clearDateFilterBtn.addEventListener('click', () => {
+                dateFilterInput.value = '';
+                state.dateFilter = null;
+                renderWordsList();
+                renderWordsTable();
+                renderDashboard();
+            });
+
+            sortByDateBtn.addEventListener('click', () => {
+                state.sortByDateAsc = !state.sortByDateAsc;
+                sortByDateBtn.textContent = state.sortByDateAsc ? '📅 Trier par date ↑' : '📅 Trier par date ↓';
+                renderWordsList();
+                renderWordsTable();
+                renderDashboard();
+            });
+
             // Rendu de la liste des mots avec cases à cocher
             const renderWordsList = () => {
                 wordsListContainer.innerHTML = '';
@@ -635,7 +757,10 @@
                     return;
                 }
 
-                state.words.forEach((word, index) => {
+                let filteredWords = filterWordsByDate(state.words);
+                filteredWords = sortWordsByDate(filteredWords);
+
+                filteredWords.forEach((word, index) => {
                     const isSelected = state.customSelection.includes(word.spanish);
                     const levelBadge = word.count >= state.learnedThreshold 
                         ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Maîtrisé</span>'
@@ -649,10 +774,13 @@
                                    class="word-checkbox" 
                                    data-word="${word.spanish}"
                                    ${isSelected ? 'checked' : ''}>
-                            <div>
-                                <span class="font-medium text-blue-700">${word.spanish}</span>
-                                <span class="text-gray-500 mx-2">→</span>
-                                <span class="text-gray-700">${word.french}</span>
+                            <div class="flex flex-col">
+                                <div>
+                                    <span class="font-medium text-blue-700">${word.spanish}</span>
+                                    <span class="text-gray-500 mx-2">→</span>
+                                    <span class="text-gray-700">${word.french}</span>
+                                </div>
+                                <div class="date-badge">${formatDate(word.date)}</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -854,12 +982,12 @@
                 sheetFeedback.innerHTML = `${errorMessage}<br>Chargement de la liste par défaut.`;
                 sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-orange-600 font-semibold';
                 const defaultWords = [
-                    { spanish: 'Hola', french: 'Bonjour' },
-                    { spanish: 'Adiós', french: 'Au revoir' },
-                    { spanish: 'Gracias', french: 'Merci' },
-                    { spanish: 'Por favor', french: 'S\'il vous plaît' },
-                    { spanish: 'Sí', french: 'Oui' },
-                    { spanish: 'No', french: 'Non' }
+                    { spanish: 'Hola', french: 'Bonjour', date: '2025-01-10' },
+                    { spanish: 'Adiós', french: 'Au revoir', date: '2025-01-10' },
+                    { spanish: 'Gracias', french: 'Merci', date: '2025-01-12' },
+                    { spanish: 'Por favor', french: 'S\'il vous plaît', date: '2025-01-12' },
+                    { spanish: 'Sí', french: 'Oui', date: '2025-01-15' },
+                    { spanish: 'No', french: 'Non', date: '2025-01-15' }
                 ];
                 const savedProgress = localStorage.getItem('spanishAppProgress_default');
                 if(savedProgress && !state.isFirstSession) {
@@ -909,6 +1037,7 @@
                         const columns = parseCsvRow(row);
                         if (columns.length >= 3 && columns[1] && columns[2]) {
                             return { 
+                                date: columns[0] || null, // Première colonne = date
                                 spanish: columns[1], 
                                 french: columns[2],
                             };
@@ -938,7 +1067,11 @@
 
             const renderWordsTable = () => {
                 wordsTableBody.innerHTML = '';
-                state.words.forEach(word => {
+                
+                let filteredWords = filterWordsByDate(state.words);
+                filteredWords = sortWordsByDate(filteredWords);
+                
+                filteredWords.forEach(word => {
                     const row = document.createElement('tr');
                     row.className = 'border-b hover:bg-gray-50';
                     
@@ -947,6 +1080,7 @@
                         : `<span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">${word.count}/${state.learnedThreshold}</span>`;
                     
                     row.innerHTML = `
+                        <td class="p-2 text-xs">${formatDate(word.date)}</td>
                         <td class="p-2">${word.spanish}</td>
                         <td class="p-2">${word.french}</td>
                         <td class="p-2 text-center">${levelBadge}</td>
@@ -982,6 +1116,33 @@
                 
                 return li;
             };
+
+            // Fonction utilitaire pour appliquer les filtres actifs
+            const getFilteredWords = (words) => {
+                let filteredWords = words;
+                
+                // Appliquer le filtre par date si actif
+                if (state.dateFilter) {
+                    filteredWords = filterWordsByDate(filteredWords);
+                }
+                
+                // Appliquer les filtres de mode si actifs
+                if (state.reviewFilter) {
+                    filteredWords = filteredWords.filter(word => 
+                        state.sessionMistakes.find(mistake => mistake.spanish === word.spanish)
+                    );
+                } else if (state.correctFilter) {
+                    filteredWords = filteredWords.filter(word => 
+                        state.sessionCorrect.find(correct => correct.spanish === word.spanish)
+                    );
+                } else if (state.customFilter) {
+                    filteredWords = filteredWords.filter(word => 
+                        state.customSelection.includes(word.spanish)
+                    );
+                }
+                
+                return filteredWords;
+            };
             
             const renderDashboard = () => {
                 wordsCorrectSessionList.innerHTML = '';
@@ -1012,8 +1173,13 @@
                     });
                 }
 
-                const toLearn = state.words.filter(w => w.count < state.learnedThreshold);
-                const learned = state.words.filter(w => w.count >= state.learnedThreshold);
+                // Appliquer les filtres aux mots à apprendre et aux mots maîtrisés
+                const allWords = state.words;
+                const filteredWords = getFilteredWords(allWords);
+                
+                const toLearn = filteredWords.filter(w => w.count < state.learnedThreshold);
+                const learned = filteredWords.filter(w => w.count >= state.learnedThreshold);
+                
                 toLearn.sort((a, b) => a.count - b.count || a.spanish.localeCompare(b.spanish));
                 learned.sort((a, b) => b.count - a.count || a.spanish.localeCompare(b.spanish));
                 
@@ -1022,10 +1188,14 @@
                 
                 if(learned.length === 0) wordsLearnedList.innerHTML = `<li class="text-gray-400">Aucun mot maîtrisé.</li>`;
                 
-                // Lors de la première session, afficher message spécial
-                if(toLearn.length === 0 && state.words.length > 0) {
-                    wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
-                } else if (state.isFirstSession && toLearn.length === state.words.length) {
+                // Messages contextuels selon les filtres
+                if(toLearn.length === 0 && allWords.length > 0) {
+                    if (state.dateFilter || state.reviewFilter || state.correctFilter || state.customFilter) {
+                        wordsToLearnList.innerHTML = `<li class="text-gray-400">Aucun mot à apprendre avec ce filtre.</li>`;
+                    } else {
+                        wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
+                    }
+                } else if (state.isFirstSession && toLearn.length === allWords.length) {
                     wordsToLearnList.innerHTML = `<li class="text-gray-400">Prêt à commencer l'apprentissage ! 🚀</li>`;
                 }
             };
@@ -1117,29 +1287,15 @@
             };
 
             const selectNextWord = () => {
-                let wordsPool = [];
+                let wordsPool = getFilteredWords(state.words);
                 
-                if (state.reviewFilter && state.sessionMistakes.length > 0) {
-                    // Mode révision: ne prendre que les mots en erreur de la session
-                    wordsPool = state.words
-                        .map((word, index) => ({ ...word, originalIndex: index }))
-                        .filter(word => state.sessionMistakes.find(mistake => mistake.spanish === word.spanish));
-                } else if (state.correctFilter && state.sessionCorrect.length > 0) {
-                    // Mode révision des mots corrects: ne prendre que les mots corrects de la session
-                    wordsPool = state.words
-                        .map((word, index) => ({ ...word, originalIndex: index }))
-                        .filter(word => state.sessionCorrect.find(correct => correct.spanish === word.spanish));
-                } else if (state.customFilter && state.customSelection.length > 0) {
-                    // Mode révision personnalisée: ne prendre que les mots sélectionnés par l'enfant
-                    wordsPool = state.words
-                        .map((word, index) => ({ ...word, originalIndex: index }))
-                        .filter(word => state.customSelection.includes(word.spanish));
-                } else {
-                    // Mode normal: tous les mots non maîtrisés
-                    wordsPool = state.words
-                        .map((word, index) => ({ ...word, originalIndex: index }))
-                        .filter(word => word.count < state.learnedThreshold);
-                }
+                // Mode normal: tous les mots non maîtrisés (avec filtres appliqués)
+                wordsPool = wordsPool
+                    .map((word, originalIndex) => ({ 
+                        ...word, 
+                        originalIndex: state.words.findIndex(w => w.spanish === word.spanish)
+                    }))
+                    .filter(word => word.count < state.learnedThreshold);
                 
                 if (wordsPool.length === 0) {
                     state.currentWordIndex = null;
@@ -1461,6 +1617,7 @@
                     reviewFilterBtn.classList.remove('active-review');
                     reviewFilterBtn.textContent = '🎯 Réviser uniquement les mots à réviser';
                 }
+                renderDashboard(); // Mettre à jour l'affichage
                 startNextExercise(); // Redémarrer avec le nouveau filtre
             });
 
@@ -1481,6 +1638,7 @@
                     correctFilterBtn.classList.remove('active-correct');
                     correctFilterBtn.textContent = '✅ Réviser uniquement les mots corrects';
                 }
+                renderDashboard(); // Mettre à jour l'affichage
                 startNextExercise(); // Redémarrer avec le nouveau filtre
             });
 
@@ -1501,6 +1659,7 @@
                     customFilterBtn.classList.remove('active-review');
                     customFilterBtn.textContent = '⭐ Réviser uniquement mes mots choisis';
                 }
+                renderDashboard(); // Mettre à jour l'affichage
                 startNextExercise(); // Redémarrer avec le nouveau filtre
             });
             
