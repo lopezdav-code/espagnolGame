@@ -53,6 +53,17 @@
             transition: all 0.2s;
             border: 1px solid #d1d5db;
         }
+        .qcm-question {
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
@@ -116,7 +127,7 @@
                     <button id="load-sheet-btn" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
                         Charger la liste
                     </button>
-                    <p id="sheet-feedback" class="text-xs text-center mt-2 h-4"></p>
+                    <p id="sheet-feedback" class="text-xs text-center mt-2 h-auto"></p>
                  </div>
             </div>
         </aside>
@@ -150,6 +161,9 @@
                 const sheetUrl = localStorage.getItem('spanishAppSheetUrl');
                 if (sheetUrl) {
                     localStorage.setItem(`spanishAppProgress_${sheetUrl}`, JSON.stringify(state.words));
+                } else {
+                    // Save progress for default list
+                    localStorage.setItem('spanishAppProgress_default', JSON.stringify(state.words));
                 }
             };
 
@@ -167,9 +181,31 @@
                  }
             };
             
+            const loadDefaultWords = (errorMessage) => {
+                sheetFeedback.innerHTML = `${errorMessage}<br>Chargement de la liste par défaut.`;
+                sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-orange-600 font-semibold';
+                const defaultWords = [
+                    { spanish: 'Hola', french: 'Bonjour' },
+                    { spanish: 'Adiós', french: 'Au revoir' },
+                    { spanish: 'Gracias', french: 'Merci' },
+                    { spanish: 'Por favor', french: 'S\'il vous plaît' },
+                    { spanish: 'Sí', french: 'Oui' },
+                    { spanish: 'No', french: 'Non' }
+                ];
+                const savedProgress = localStorage.getItem('spanishAppProgress_default');
+                if(savedProgress) {
+                    state.words = JSON.parse(savedProgress);
+                } else {
+                    state.words = defaultWords.map(word => ({ ...word, count: 0 }));
+                }
+                localStorage.removeItem('spanishAppSheetUrl'); // Clear invalid URL
+                saveState();
+                restartApp();
+            };
+            
              const fetchAndParseSheet = async (url) => {
                 sheetFeedback.textContent = 'Chargement...';
-                sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-gray-500';
+                sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-gray-500';
                 try {
                     const response = await fetch(url);
                     if (!response.ok) {
@@ -216,7 +252,7 @@
                         loadState(newWords);
                         saveState();
                         sheetFeedback.textContent = `✅ ${newWords.length} mots chargés !`;
-                        sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-green-600';
+                        sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-green-600';
                          setTimeout(() => { sheetFeedback.textContent = '' }, 3000);
                         restartApp();
                     } else {
@@ -230,8 +266,7 @@
                     } else if (error.message.includes('Failed to fetch')) {
                         errorMessage = '❌ Erreur réseau. Vérifiez votre connexion internet.';
                     }
-                    sheetFeedback.textContent = errorMessage;
-                    sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-red-600';
+                    loadDefaultWords(errorMessage);
                 }
             };
             
@@ -264,6 +299,7 @@
                 answerInput.value = '';
                 answerInput.style.display = 'none';
                 qcmOptionsContainer.innerHTML = '';
+                qcmOptionsContainer.style.display = 'none';
                 feedback.innerHTML = '';
                 checkBtn.classList.add('hidden');
                 nextBtn.classList.add('hidden');
@@ -307,7 +343,18 @@
             };
             
             const renderQCM = (question) => {
-                exerciseContainer.innerHTML = `<div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold">${question.word.spanish}</div>`;
+                // FIX: Add a guard clause to prevent rendering a broken QCM
+                if (!question.options || question.options.length < 2) {
+                    console.warn('renderQCM called with invalid options. Rendering flashcard instead.', question);
+                    renderFlashcard({ type: 'flashcard-es-fr', word: question.word });
+                    return; 
+                }
+
+                // Afficher la question dans le conteneur d'exercice
+                exerciseContainer.innerHTML = `<div class="qcm-question">${question.word.spanish}</div>`;
+                
+                // Afficher les options dans la section réponse
+                qcmOptionsContainer.style.display = 'flex';
                 question.options.forEach(option => {
                     const button = document.createElement('button');
                     button.textContent = option;
@@ -348,11 +395,10 @@
                 
                 state.currentQuestion = { type: exerciseType, word: state.words[state.currentWordIndex] };
 
-                // CORRECTION : Logique QCM rendue plus robuste
                 if (exerciseType === 'qcm') {
                     try {
                         const correctWord = state.currentQuestion.word;
-                        if (state.words.length < 2) throw new Error("Pas assez de mots pour un QCM.");
+                        if (state.words.length < 4) throw new Error("Pas assez de mots pour un QCM.");
                         
                         const distractors = [];
                         const wordPool = state.words.filter(w => w.spanish !== correctWord.spanish && w.french);
@@ -365,7 +411,7 @@
                         if (!correctWord || !correctWord.french) throw new Error("Mot actuel invalide.");
                         
                         const options = [correctWord, ...distractors].map(w => w.french);
-                        if (options.length < 2) throw new Error("Pas assez d'options pour un QCM.");
+                        if (options.length < 4) throw new Error("Pas assez d'options pour un QCM.");
                         
                         state.currentQuestion.options = options.sort(() => Math.random() - 0.5);
 
