@@ -241,6 +241,36 @@
             padding: 1rem;
             margin-bottom: 1rem;
         }
+        .clickable-word {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .clickable-word:hover {
+            background-color: #f3f4f6;
+            border-radius: 0.25rem;
+        }
+        .translation-popup {
+            position: absolute;
+            background-color: #1f2937;
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            z-index: 20;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .translation-popup::before {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #1f2937;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
@@ -318,10 +348,12 @@
                     <div class="flex flex-wrap items-center justify-center gap-4">
                         <div class="flex items-center gap-2">
                             <label for="date-filter" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
-                            <input type="date" id="date-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <select id="date-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                                <option value="">Toutes les dates</option>
+                            </select>
                             <button id="clear-date-filter" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
                         </div>
-                        <button id="sort-by-date" class="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">📅 Trier par date</button>
+                        <button id="sort-by-date" class="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">📅 Trier par date ↓</button>
                     </div>
                 </div>
 
@@ -332,6 +364,7 @@
                     <span class="mx-2">→ Mot suivant</span>
                     <span class="mx-2">↵ Valider</span>
                     <span class="mx-2">↑ Accepter réponse</span>
+                    <span class="mx-2">Espace Voir réponse</span>
                 </div>
                 
                 <div id="exercise-container" class="h-64 sm:h-72">
@@ -367,6 +400,19 @@
             <div id="content-wordlist" class="tab-content">
                 <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
                 <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
+                
+                <!-- Filtre par date dans l'onglet liste -->
+                <div class="filter-controls">
+                    <div class="flex flex-wrap items-center justify-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label for="date-filter-wordlist" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
+                            <select id="date-filter-wordlist" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                                <option value="">Toutes les dates</option>
+                            </select>
+                            <button id="clear-date-filter-wordlist" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="space-y-2 max-h-96 overflow-y-auto mb-6">
                     <div id="words-list-container">
@@ -475,7 +521,7 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.6 - 15/01/2025 16:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.7 - 15/01/2025 16:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -486,6 +532,7 @@
 
             const state = {
                 words: [],
+                availableDates: [], // Dates disponibles dans les données
                 currentWordIndex: null,
                 wordHistory: [], // Historique des mots vus pour navigation
                 historyPosition: -1, // Position actuelle dans l'historique
@@ -496,7 +543,7 @@
                 sessionCorrect: [], // Mots corrects pendant cette session
                 customSelection: [], // Mots sélectionnés manuellement par l'enfant
                 dateFilter: null, // Filtre par date
-                sortByDateAsc: true, // Tri par date croissant ou décroissant
+                sortByDateAsc: false, // Tri par date croissant ou décroissant (défaut décroissant)
                 sessionStats: {
                     total: 0,
                     correct: 0,
@@ -545,10 +592,12 @@
             const wordsListContainer = document.getElementById('words-list-container');
             const saveCustomSelectionBtn = document.getElementById('save-custom-selection');
             
-            // Nouveaux éléments pour les dates
-            const dateFilterInput = document.getElementById('date-filter');
+            // Éléments pour les dates
+            const dateFilterSelect = document.getElementById('date-filter');
             const clearDateFilterBtn = document.getElementById('clear-date-filter');
             const sortByDateBtn = document.getElementById('sort-by-date');
+            const dateFilterWordlistSelect = document.getElementById('date-filter-wordlist');
+            const clearDateFilterWordlistBtn = document.getElementById('clear-date-filter-wordlist');
 
             // Éléments onglets
             const tabExercise = document.getElementById('tab-exercise');
@@ -575,18 +624,9 @@
             const sessionAccepted = document.getElementById('session-accepted');
 
             let timerInterval = null;
+            let currentTranslationPopup = null;
 
             // Fonctions utilitaires pour les dates
-            const formatDate = (dateString) => {
-                if (!dateString) return 'Sans date';
-                try {
-                    const date = new Date(dateString);
-                    return date.toLocaleDateString('fr-FR');
-                } catch (e) {
-                    return dateString;
-                }
-            };
-
             const parseDate = (dateString) => {
                 if (!dateString) return null;
                 try {
@@ -596,16 +636,46 @@
                 }
             };
 
+            // Construction de la liste des dates disponibles
+            const buildAvailableDates = () => {
+                const dateSet = new Set();
+                state.words.forEach(word => {
+                    if (word.date) {
+                        dateSet.add(word.date);
+                    }
+                });
+                state.availableDates = Array.from(dateSet).sort((a, b) => {
+                    const dateA = parseDate(a) || new Date(0);
+                    const dateB = parseDate(b) || new Date(0);
+                    return dateB - dateA; // Tri décroissant par défaut (plus récent en premier)
+                });
+            };
+
+            // Mise à jour des selects de date
+            const updateDateSelects = () => {
+                const updateSelect = (selectElement) => {
+                    const currentValue = selectElement.value;
+                    selectElement.innerHTML = '<option value="">Toutes les dates</option>';
+                    
+                    state.availableDates.forEach(date => {
+                        const option = document.createElement('option');
+                        option.value = date;
+                        option.textContent = date;
+                        if (date === currentValue) {
+                            option.selected = true;
+                        }
+                        selectElement.appendChild(option);
+                    });
+                };
+
+                updateSelect(dateFilterSelect);
+                updateSelect(dateFilterWordlistSelect);
+            };
+
             // Filtrage des mots par date
             const filterWordsByDate = (words) => {
                 if (!state.dateFilter) return words;
-                return words.filter(word => {
-                    if (!word.date) return false;
-                    const wordDate = parseDate(word.date);
-                    const filterDate = parseDate(state.dateFilter);
-                    if (!wordDate || !filterDate) return false;
-                    return wordDate.toDateString() === filterDate.toDateString();
-                });
+                return words.filter(word => word.date === state.dateFilter);
             };
 
             // Tri des mots par date
@@ -616,6 +686,38 @@
                     return state.sortByDateAsc ? dateA - dateB : dateB - dateA;
                 });
             };
+
+            // Gestion des popups de traduction
+            const showTranslationPopup = (element, translation) => {
+                hideTranslationPopup();
+                
+                const popup = document.createElement('div');
+                popup.className = 'translation-popup';
+                popup.textContent = translation;
+                
+                const rect = element.getBoundingClientRect();
+                popup.style.left = rect.left + (rect.width / 2) + 'px';
+                popup.style.top = (rect.top - 50) + 'px';
+                
+                document.body.appendChild(popup);
+                currentTranslationPopup = popup;
+            };
+
+            const hideTranslationPopup = () => {
+                if (currentTranslationPopup) {
+                    currentTranslationPopup.remove();
+                    currentTranslationPopup = null;
+                }
+            };
+
+            // Gestion des clics sur les mots pour afficher la traduction
+            const handleWordClick = (event, word) => {
+                event.stopPropagation();
+                showTranslationPopup(event.target, word.french);
+            };
+
+            // Cacher la popup si on clique ailleurs
+            document.addEventListener('click', hideTranslationPopup);
 
             // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER
             const handleKeyboard = (event) => {
@@ -647,6 +749,27 @@
                             handleAcceptAnswer();
                         }
                         break;
+                    case ' ': // Espace pour afficher la réponse
+                        event.preventDefault();
+                        showAnswer();
+                        break;
+                }
+            };
+
+            // Fonction pour afficher la réponse (raccourci espace)
+            const showAnswer = () => {
+                if (state.currentQuestion.type !== 'qcm') {
+                    // Pour les flashcards, retourner la carte
+                    exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
+                }
+                // Pour les QCM, colorer la bonne réponse
+                if (state.currentQuestion.type === 'qcm' && state.currentQuestion.word) {
+                    const correctAnswerText = state.currentQuestion.word.french;
+                    document.querySelectorAll('.qcm-option-btn').forEach(btn => {
+                        if (btn.textContent === correctAnswerText) {
+                            btn.className += ' bg-blue-200 border-blue-500';
+                        }
+                    });
                 }
             };
 
@@ -724,16 +847,38 @@
             tabExercise.addEventListener('click', () => switchTab('exercise'));
             tabWordlist.addEventListener('click', () => switchTab('wordlist'));
 
-            // Gestion des filtres de date
-            dateFilterInput.addEventListener('change', (e) => {
+            // Gestion des filtres de date pour les exercices
+            dateFilterSelect.addEventListener('change', (e) => {
                 state.dateFilter = e.target.value || null;
+                // Synchroniser avec l'autre select
+                dateFilterWordlistSelect.value = e.target.value;
                 renderWordsList();
                 renderWordsTable();
                 renderDashboard();
             });
 
             clearDateFilterBtn.addEventListener('click', () => {
-                dateFilterInput.value = '';
+                dateFilterSelect.value = '';
+                dateFilterWordlistSelect.value = '';
+                state.dateFilter = null;
+                renderWordsList();
+                renderWordsTable();
+                renderDashboard();
+            });
+
+            // Gestion des filtres de date pour la liste des mots
+            dateFilterWordlistSelect.addEventListener('change', (e) => {
+                state.dateFilter = e.target.value || null;
+                // Synchroniser avec l'autre select
+                dateFilterSelect.value = e.target.value;
+                renderWordsList();
+                renderWordsTable();
+                renderDashboard();
+            });
+
+            clearDateFilterWordlistBtn.addEventListener('click', () => {
+                dateFilterSelect.value = '';
+                dateFilterWordlistSelect.value = '';
                 state.dateFilter = null;
                 renderWordsList();
                 renderWordsTable();
@@ -780,7 +925,7 @@
                                     <span class="text-gray-500 mx-2">→</span>
                                     <span class="text-gray-700">${word.french}</span>
                                 </div>
-                                <div class="date-badge">${formatDate(word.date)}</div>
+                                <div class="date-badge">${word.date || 'Sans date'}</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -997,6 +1142,8 @@
                     state.isFirstSession = false;
                 }
                 localStorage.removeItem('spanishAppSheetUrl'); // Clear invalid URL
+                buildAvailableDates();
+                updateDateSelects();
                 saveState();
                 restartApp();
             };
@@ -1037,7 +1184,7 @@
                         const columns = parseCsvRow(row);
                         if (columns.length >= 3 && columns[1] && columns[2]) {
                             return { 
-                                date: columns[0] || null, // Première colonne = date
+                                date: columns[0] || null, // Première colonne = date (brute)
                                 spanish: columns[1], 
                                 french: columns[2],
                             };
@@ -1050,6 +1197,8 @@
                         localStorage.setItem('spanishAppSheetUrl', url);
                         loadState(newWords);
                         loadCustomSelection(); // Charger la sélection personnalisée
+                        buildAvailableDates(); // Construire la liste des dates
+                        updateDateSelects(); // Mettre à jour les selects
                         saveState();
                         sheetFeedback.textContent = `✅ ${newWords.length} mots chargés !`;
                         sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-green-600';
@@ -1080,7 +1229,7 @@
                         : `<span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">${word.count}/${state.learnedThreshold}</span>`;
                     
                     row.innerHTML = `
-                        <td class="p-2 text-xs">${formatDate(word.date)}</td>
+                        <td class="p-2 text-xs">${word.date || 'Sans date'}</td>
                         <td class="p-2">${word.spanish}</td>
                         <td class="p-2">${word.french}</td>
                         <td class="p-2 text-center">${levelBadge}</td>
@@ -1101,10 +1250,14 @@
                 }
             };
             
-            const createWordListItem = (word, colorClass, isSessionWord = false) => {
+            const createWordListItem = (word, colorClass, isSessionWord = false, isClickable = false) => {
                 const li = document.createElement('li');
-                li.className = `tooltip ${isSessionWord ? '' : 'flex justify-between items-center'}`;
-                li.setAttribute('data-tooltip', word.french);
+                li.className = `${isSessionWord ? '' : 'flex justify-between items-center'} ${isClickable ? 'clickable-word' : ''}`;
+                
+                if (isClickable) {
+                    // Ajouter l'événement de clic pour afficher la traduction
+                    li.addEventListener('click', (e) => handleWordClick(e, word));
+                }
                 
                 if (isSessionWord) {
                     // Pour les listes de session (pas de compteur)
@@ -1155,21 +1308,21 @@
                      return;
                 }
 
-                // Mots corrects de la session
+                // Mots corrects de la session (avec clics pour traduction)
                 if (state.sessionCorrect.length === 0) {
                     wordsCorrectSessionList.innerHTML = `<li class="text-gray-400">Aucun mot correct pour l'instant !</li>`;
                 } else {
                     state.sessionCorrect.forEach(word => {
-                        wordsCorrectSessionList.appendChild(createWordListItem(word, 'text-green-600', true));
+                        wordsCorrectSessionList.appendChild(createWordListItem(word, 'text-green-600', true, true));
                     });
                 }
 
-                // Mots à réviser (erreurs de la session)
+                // Mots à réviser (erreurs de la session) (avec clics pour traduction)
                 if (state.sessionMistakes.length === 0) {
                     wordsToReviewList.innerHTML = `<li class="text-gray-400">Aucune erreur pour l'instant !</li>`;
                 } else {
                     state.sessionMistakes.forEach(word => {
-                        wordsToReviewList.appendChild(createWordListItem(word, 'text-red-600', true));
+                        wordsToReviewList.appendChild(createWordListItem(word, 'text-red-600', true, true));
                     });
                 }
 
@@ -1183,8 +1336,9 @@
                 toLearn.sort((a, b) => a.count - b.count || a.spanish.localeCompare(b.spanish));
                 learned.sort((a, b) => b.count - a.count || a.spanish.localeCompare(b.spanish));
                 
-                toLearn.forEach(w => wordsToLearnList.appendChild(createWordListItem(w, 'bg-orange-100 text-orange-700', false)));
-                learned.forEach(w => wordsLearnedList.appendChild(createWordListItem(w, 'bg-green-100 text-green-700', false)));
+                // Mots à apprendre et maîtrisés (avec clics pour traduction)
+                toLearn.forEach(w => wordsToLearnList.appendChild(createWordListItem(w, 'bg-orange-100 text-orange-700', false, true)));
+                learned.forEach(w => wordsLearnedList.appendChild(createWordListItem(w, 'bg-green-100 text-green-700', false, true)));
                 
                 if(learned.length === 0) wordsLearnedList.innerHTML = `<li class="text-gray-400">Aucun mot maîtrisé.</li>`;
                 
