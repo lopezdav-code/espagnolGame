@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apprentissage Espagnol pour Clémence</title>
+    <title>Révision des mots de vocabulaire de Clémence LOPEZ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,15 +105,29 @@
             font-weight: bold;
             font-size: 1.1rem;
         }
+        .filter-btn {
+            border: 1px solid #d1d5db;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            background-color: white;
+        }
+        .filter-btn.active {
+            background-color: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
+<body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
 
-    <div id="app" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div id="app" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
         
         <main class="lg:col-span-2 space-y-6">
             <header class="text-center">
-                <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Apprentissage d'Espagnol</h1>
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Révision des mots de vocabulaire de Clémence LOPEZ</h1>
                 <div class="mt-2 flex justify-center items-center gap-4">
                     <div class="timer text-blue-600">⏱️ <span id="session-timer">00:00</span></div>
                 </div>
@@ -124,6 +138,10 @@
                 <button data-mode="flashcard-es-fr" class="mode-btn">🇪🇸 → 🇫🇷 Flashcard</button>
                 <button data-mode="flashcard-fr-es" class="mode-btn">🇫🇷 → 🇪🇸 Flashcard</button>
                 <button data-mode="qcm" class="mode-btn">🧠 QCM</button>
+            </div>
+
+            <div class="flex justify-center">
+                <button id="review-filter-btn" class="filter-btn">🎯 Réviser uniquement les mots à réviser</button>
             </div>
             
             <div id="exercise-container" class="h-64 sm:h-72">
@@ -182,6 +200,10 @@
                         </div>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow">
+                        <h3 class="font-bold mb-2 text-green-500">✅ Mots corrects (session)</h3>
+                        <ul id="words-correct-session" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow">
                         <h3 class="font-bold mb-2 text-red-500">❌ Mots à réviser (session)</h3>
                         <ul id="words-to-review" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
                     </div>
@@ -212,6 +234,11 @@
         </aside>
     </div>
 
+    <!-- Pied de page -->
+    <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
+        <p>Version 2.1 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+    </footer>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -222,6 +249,7 @@
                 exerciseMode: 'mix', // 'mix', 'flashcard-es-fr', 'flashcard-fr-es', 'qcm'
                 currentQuestion: {}, // { type, word, options, answer }
                 sessionMistakes: [], // Mots ratés pendant cette session
+                sessionCorrect: [], // Mots corrects pendant cette session
                 sessionStats: {
                     total: 0,
                     correct: 0,
@@ -231,9 +259,11 @@
                     startTime: null
                 },
                 lastUserAnswer: '', // Pour pouvoir l'afficher dans le feedback
+                reviewFilter: false, // Filtre pour ne réviser que les mots à réviser
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
+            const wordsCorrectSessionList = document.getElementById('words-correct-session');
             const wordsToReviewList = document.getElementById('words-to-review');
             const wordsToLearnList = document.getElementById('words-to-learn');
             const wordsLearnedList = document.getElementById('words-learned');
@@ -249,6 +279,7 @@
             const nextBtn = document.getElementById('next-btn');
             const modeButtons = document.querySelectorAll('.mode-btn');
             const sessionTimer = document.getElementById('session-timer');
+            const reviewFilterBtn = document.getElementById('review-filter-btn');
 
             // Éléments des statistiques de session
             const sessionTotal = document.getElementById('session-total');
@@ -409,6 +440,7 @@
             };
             
             const renderDashboard = () => {
+                wordsCorrectSessionList.innerHTML = '';
                 wordsToReviewList.innerHTML = '';
                 wordsToLearnList.innerHTML = '';
                 wordsLearnedList.innerHTML = '';
@@ -416,6 +448,19 @@
                 if (state.words.length === 0) {
                      wordsToLearnList.innerHTML = `<li class="text-gray-500">Chargez une liste.</li>`;
                      return;
+                }
+
+                // Mots corrects de la session
+                if (state.sessionCorrect.length === 0) {
+                    wordsCorrectSessionList.innerHTML = `<li class="text-gray-400">Aucun mot correct pour l'instant !</li>`;
+                } else {
+                    state.sessionCorrect.forEach(word => {
+                        const li = document.createElement('li');
+                        li.className = 'tooltip';
+                        li.setAttribute('data-tooltip', word.french);
+                        li.innerHTML = `<span class="text-green-600">${word.spanish}</span>`;
+                        wordsCorrectSessionList.appendChild(li);
+                    });
                 }
 
                 // Mots à réviser (erreurs de la session)
@@ -530,16 +575,28 @@
             };
 
             const selectNextWord = () => {
-                const wordsToLearn = state.words
-                    .map((word, index) => ({ ...word, originalIndex: index }))
-                    .filter(word => word.count < state.learnedThreshold);
-                if (wordsToLearn.length === 0) {
+                let wordsPool = [];
+                
+                if (state.reviewFilter && state.sessionMistakes.length > 0) {
+                    // Mode révision: ne prendre que les mots en erreur de la session
+                    wordsPool = state.words
+                        .map((word, index) => ({ ...word, originalIndex: index }))
+                        .filter(word => state.sessionMistakes.find(mistake => mistake.spanish === word.spanish));
+                } else {
+                    // Mode normal: tous les mots non maîtrisés
+                    wordsPool = state.words
+                        .map((word, index) => ({ ...word, originalIndex: index }))
+                        .filter(word => word.count < state.learnedThreshold);
+                }
+                
+                if (wordsPool.length === 0) {
                     state.currentWordIndex = null;
                     return;
                 }
-                wordsToLearn.sort((a,b) => a.count - b.count);
-                const minCount = wordsToLearn[0].count;
-                const leastSeenWords = wordsToLearn.filter(word => word.count === minCount);
+                
+                wordsPool.sort((a,b) => a.count - b.count);
+                const minCount = wordsPool[0].count;
+                const leastSeenWords = wordsPool.filter(word => word.count === minCount);
                 const randomIndex = Math.floor(Math.random() * leastSeenWords.length);
                 state.currentWordIndex = leastSeenWords[randomIndex].originalIndex;
             };
@@ -624,8 +681,18 @@
                 state.sessionStats.accepted++;
                 state.sessionStats.total++;
                 
+                // Ajouter aux mots corrects si pas déjà présent
+                if (!state.sessionCorrect.find(w => w.spanish === word.spanish)) {
+                    state.sessionCorrect.push({ ...word });
+                }
+                
                 // Retirer des erreurs de session si présent
                 state.sessionMistakes = state.sessionMistakes.filter(w => w.spanish !== word.spanish);
+                
+                // Vérifier si le mot est maintenant maîtrisé
+                if (word.count >= state.learnedThreshold) {
+                    // Le mot sera automatiquement dans la section "maîtrisé" lors du prochain renderDashboard()
+                }
                 
                 updateSessionStats();
                 saveState();
@@ -724,6 +791,15 @@
                 if (isCorrect) {
                     word.count++;
                     state.sessionStats.correct++;
+                    
+                    // Ajouter aux mots corrects si pas déjà présent
+                    if (!state.sessionCorrect.find(w => w.spanish === word.spanish)) {
+                        state.sessionCorrect.push({ ...word });
+                    }
+                    
+                    // Retirer des erreurs de session si présent
+                    state.sessionMistakes = state.sessionMistakes.filter(w => w.spanish !== word.spanish);
+                    
                     feedback.innerHTML = `
                         <div class="feedback-box border-green-500 bg-green-50">
                             <div class="text-sm text-gray-700 mb-2">
@@ -778,6 +854,7 @@
             
             const restartApp = () => {
                 state.sessionMistakes = []; // Reset des erreurs de session
+                state.sessionCorrect = []; // Reset des mots corrects de session
                 resetSessionStats(); // Reset des statistiques
                 renderDashboard();
                 startNextExercise();
@@ -795,6 +872,19 @@
             
             nextBtn.addEventListener('click', startNextExercise);
             loadSheetBtn.addEventListener('click', () => { if (sheetUrlInput.value.trim()) fetchAndParseSheet(sheetUrlInput.value.trim()); });
+            
+            // Gestionnaire du filtre de révision
+            reviewFilterBtn.addEventListener('click', () => {
+                state.reviewFilter = !state.reviewFilter;
+                if (state.reviewFilter) {
+                    reviewFilterBtn.classList.add('active');
+                    reviewFilterBtn.textContent = '🎯 Mode révision activé';
+                } else {
+                    reviewFilterBtn.classList.remove('active');
+                    reviewFilterBtn.textContent = '🎯 Réviser uniquement les mots à réviser';
+                }
+                startNextExercise(); // Redémarrer avec le nouveau filtre
+            });
             
             modeButtons.forEach(button => {
                 button.addEventListener('click', () => {
