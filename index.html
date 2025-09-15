@@ -64,6 +64,35 @@
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
             margin-bottom: 1.5rem;
         }
+        .tooltip {
+            position: relative;
+            cursor: pointer;
+        }
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1f2937;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 10;
+            margin-bottom: 0.25rem;
+        }
+        .tooltip:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid transparent;
+            border-top-color: #1f2937;
+            z-index: 10;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
@@ -96,6 +125,9 @@
                  <button id="check-btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105">
                     Vérifier
                 </button>
+                <button id="dont-know-btn" class="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105">
+                    Je ne sais pas
+                </button>
                 <button id="next-btn" class="hidden bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
                     Mot Suivant ➡️
                 </button>
@@ -106,6 +138,10 @@
             <div>
                 <h2 class="text-2xl font-semibold mb-4 text-blue-600">Tableau de Bord</h2>
                 <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow">
+                        <h3 class="font-bold mb-2 text-red-500">❌ Mots à réviser (session)</h3>
+                        <ul id="words-to-review" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
+                    </div>
                     <div class="bg-white p-4 rounded-xl shadow">
                         <h3 class="font-bold mb-2 text-orange-500">🧠 Mots à apprendre</h3>
                         <ul id="words-to-learn" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
@@ -142,9 +178,11 @@
                 learnedThreshold: 3,
                 exerciseMode: 'mix', // 'mix', 'flashcard-es-fr', 'flashcard-fr-es', 'qcm'
                 currentQuestion: {}, // { type, word, options, answer }
+                sessionMistakes: [], // Mots ratés pendant cette session
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
+            const wordsToReviewList = document.getElementById('words-to-review');
             const wordsToLearnList = document.getElementById('words-to-learn');
             const wordsLearnedList = document.getElementById('words-learned');
             const sheetUrlInput = document.getElementById('sheet-url-input');
@@ -154,6 +192,7 @@
             const qcmOptionsContainer = document.getElementById('qcm-options');
             const feedback = document.getElementById('feedback');
             const checkBtn = document.getElementById('check-btn');
+            const dontKnowBtn = document.getElementById('dont-know-btn');
             const nextBtn = document.getElementById('next-btn');
             const modeButtons = document.querySelectorAll('.mode-btn');
 
@@ -271,12 +310,28 @@
             };
             
             const renderDashboard = () => {
+                wordsToReviewList.innerHTML = '';
                 wordsToLearnList.innerHTML = '';
                 wordsLearnedList.innerHTML = '';
+                
                 if (state.words.length === 0) {
                      wordsToLearnList.innerHTML = `<li class="text-gray-500">Chargez une liste.</li>`;
                      return;
                 }
+
+                // Mots à réviser (erreurs de la session)
+                if (state.sessionMistakes.length === 0) {
+                    wordsToReviewList.innerHTML = `<li class="text-gray-400">Aucune erreur pour l'instant !</li>`;
+                } else {
+                    state.sessionMistakes.forEach(word => {
+                        const li = document.createElement('li');
+                        li.className = 'tooltip';
+                        li.setAttribute('data-tooltip', word.french);
+                        li.innerHTML = `<span class="text-red-600">${word.spanish}</span>`;
+                        wordsToReviewList.appendChild(li);
+                    });
+                }
+
                 const toLearn = state.words.filter(w => w.count < state.learnedThreshold);
                 const learned = state.words.filter(w => w.count >= state.learnedThreshold);
                 toLearn.sort((a, b) => a.count - b.count || a.spanish.localeCompare(b.spanish));
@@ -284,7 +339,8 @@
                 
                 const createLi = (word, colorClass) => {
                     const li = document.createElement('li');
-                    li.className = 'flex justify-between items-center';
+                    li.className = 'flex justify-between items-center tooltip';
+                    li.setAttribute('data-tooltip', word.french);
                     li.innerHTML = `<span>${word.spanish}</span><span class="text-xs font-mono ${colorClass} rounded-full px-2 py-0.5">${word.count}</span>`;
                     return li;
                 };
@@ -302,8 +358,10 @@
                 qcmOptionsContainer.style.display = 'none';
                 feedback.innerHTML = '';
                 checkBtn.classList.add('hidden');
+                dontKnowBtn.classList.add('hidden');
                 nextBtn.classList.add('hidden');
                 checkBtn.onclick = null;
+                dontKnowBtn.onclick = null;
                 
                 const question = state.currentQuestion;
                 if (!question.word) {
@@ -330,7 +388,9 @@
                 answerInput.style.display = 'block';
                 answerInput.disabled = false;
                 checkBtn.classList.remove('hidden');
+                dontKnowBtn.classList.remove('hidden');
                 checkBtn.onclick = () => handleAnswer(answerInput.value);
+                dontKnowBtn.onclick = () => handleDontKnow();
                 answerInput.focus();
                 
                 exerciseContainer.innerHTML = `
@@ -352,6 +412,10 @@
 
                 // Afficher la question dans le conteneur d'exercice
                 exerciseContainer.innerHTML = `<div class="qcm-question">${question.word.spanish}</div>`;
+                
+                // Afficher le bouton "Je ne sais pas" pour les QCM aussi
+                dontKnowBtn.classList.remove('hidden');
+                dontKnowBtn.onclick = () => handleDontKnow();
                 
                 // Afficher les options dans la section réponse
                 qcmOptionsContainer.style.display = 'flex';
@@ -441,10 +505,54 @@
                 return finalAnswers.map(ans => normalizeUserAnswer(ans));
             };
 
+            const handleDontKnow = () => {
+                const { word } = state.currentQuestion;
+                
+                // Marquer comme incorrect
+                word.count = 0;
+                
+                // Ajouter aux mots à réviser si pas déjà présent
+                if (!state.sessionMistakes.find(w => w.spanish === word.spanish)) {
+                    state.sessionMistakes.push({ ...word });
+                }
+                
+                // Afficher la réponse
+                const correctAnswerText = state.currentQuestion.type === 'flashcard-fr-es' ? word.spanish : word.french;
+                feedback.innerHTML = `La réponse était : <strong class="text-blue-600">${correctAnswerText}</strong>`;
+                feedback.className = 'text-center h-6 font-semibold pt-2 text-orange-600';
+                
+                // Désactiver les contrôles
+                answerInput.disabled = true;
+                checkBtn.classList.add('hidden');
+                dontKnowBtn.classList.add('hidden');
+                document.querySelectorAll('.qcm-option-btn').forEach(btn => btn.disabled = true);
+                
+                // Montrer la carte retournée pour les flashcards
+                if (state.currentQuestion.type !== 'qcm') {
+                    exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
+                }
+                
+                // Colorer les options QCM
+                if (state.currentQuestion.type === 'qcm') {
+                    document.querySelectorAll('.qcm-option-btn').forEach(btn => {
+                        if (btn.textContent === correctAnswerText) {
+                            btn.className += ' bg-blue-200 border-blue-500';
+                        }
+                    });
+                }
+                
+                nextBtn.classList.remove('hidden');
+                nextBtn.focus();
+                saveState();
+                renderDashboard();
+            };
+
             const handleAnswer = (userAnswer) => {
                 answerInput.disabled = true;
                 checkBtn.classList.add('hidden');
+                dontKnowBtn.classList.add('hidden');
                 checkBtn.onclick = null;
+                dontKnowBtn.onclick = null;
                 document.querySelectorAll('.qcm-option-btn').forEach(btn => btn.disabled = true);
 
                 const { type, word } = state.currentQuestion;
@@ -466,6 +574,10 @@
                     feedback.className = 'text-center h-6 font-semibold pt-2 text-green-600';
                 } else {
                     word.count = 0;
+                    // Ajouter aux mots à réviser si pas déjà présent
+                    if (!state.sessionMistakes.find(w => w.spanish === word.spanish)) {
+                        state.sessionMistakes.push({ ...word });
+                    }
                     feedback.innerHTML = `Incorrect. C'était : <strong class="text-blue-600">${correctAnswerText}</strong>`;
                     feedback.className = 'text-center h-6 font-semibold pt-2 text-red-600';
                 }
@@ -486,6 +598,7 @@
             };
             
             const restartApp = () => {
+                state.sessionMistakes = []; // Reset des erreurs de session
                 renderDashboard();
                 startNextExercise();
             };
@@ -511,12 +624,17 @@
                 });
             });
 
+            // Gestionnaire d'événements pour la touche Entrée - CORRIGÉ
             document.addEventListener('keyup', (event) => {
                 if (event.key !== 'Enter') return;
-                if (document.activeElement === answerInput && !checkBtn.classList.contains('hidden')) {
-                    checkBtn.click();
-                } else if (!nextBtn.classList.contains('hidden')) {
+                
+                // Si le bouton "Mot Suivant" est visible, l'activer
+                if (!nextBtn.classList.contains('hidden')) {
                     nextBtn.click();
+                }
+                // Sinon, si l'input est actif et le bouton "Vérifier" est visible, vérifier la réponse
+                else if (document.activeElement === answerInput && !checkBtn.classList.contains('hidden')) {
+                    checkBtn.click();
                 }
             });
             
