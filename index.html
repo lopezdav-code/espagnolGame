@@ -49,6 +49,26 @@
             color: white;
             border-color: #3b82f6;
         }
+        .tab-btn {
+            border: 1px solid #d1d5db;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem 0.5rem 0 0;
+            font-weight: 500;
+            transition: all 0.2s;
+            background-color: white;
+            border-bottom: none;
+        }
+        .tab-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
         .qcm-option-btn {
             transition: all 0.2s;
             border: 1px solid #d1d5db;
@@ -162,6 +182,16 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+        .word-item {
+            transition: all 0.2s;
+        }
+        .word-item:hover {
+            background-color: #f3f4f6;
+        }
+        .word-checkbox {
+            width: 1.2rem;
+            height: 1.2rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
@@ -193,7 +223,7 @@
             <div class="space-y-3">
                 <input type="url" id="new-sheet-url" placeholder="https://docs.google.com/..." class="w-full p-3 border border-gray-300 rounded-lg">
                 <p class="text-xs text-gray-500">Exemple de lien valide :</p>
-                <p class="text-xs text-blue-600 bg-blue-50 p-2 rounded break-all">https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxYJQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv</p>
+                <p class="text-xs text-blue-600 bg-blue-50 p-2 rounded break-all" id="example-url-display"></p>
                 <div class="flex gap-2">
                     <button id="use-example-btn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Utiliser l'exemple</button>
                     <button id="validate-new-sheet-btn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Valider</button>
@@ -212,42 +242,74 @@
                     <button id="reset-session-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm">🔄 Reset Session</button>
                 </div>
             </header>
-            
-            <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap">
-                <button data-mode="mix" class="mode-btn">🚀 Mix</button>
-                <button data-mode="flashcard-es-fr" class="mode-btn">🇪🇸 → 🇫🇷 Flashcard</button>
-                <button data-mode="flashcard-fr-es" class="mode-btn">🇫🇷 → 🇪🇸 Flashcard</button>
-                <button data-mode="qcm" class="mode-btn">🧠 QCM</button>
+
+            <!-- Onglets -->
+            <div class="flex justify-center">
+                <div class="flex border-b border-gray-300">
+                    <button id="tab-exercise" class="tab-btn active">🎯 Exercices</button>
+                    <button id="tab-wordlist" class="tab-btn">📝 Liste des mots</button>
+                </div>
             </div>
 
-            <div class="flex justify-center gap-2 flex-wrap">
-                <button id="review-filter-btn" class="filter-btn">🎯 Réviser uniquement les mots à réviser</button>
-                <button id="correct-filter-btn" class="filter-btn">✅ Réviser uniquement les mots corrects</button>
-            </div>
-            
-            <div id="exercise-container" class="h-64 sm:h-72">
-                <!-- L'exercice (carte ou QCM) sera injecté ici -->
-            </div>
-            
-            <div id="answer-section" class="mt-4 space-y-3 min-h-[120px]">
-                <input type="text" id="answer-input" placeholder="Écrivez la traduction ici..." autocomplete="off" class="w-full max-w-md mx-auto block p-3 border border-gray-300 rounded-lg text-center text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                <div id="qcm-options" class="flex flex-col items-center gap-3 w-full max-w-md mx-auto"></div>
-                <div id="feedback" class="text-center min-h-[60px] font-semibold pt-2"></div>
+            <!-- Contenu onglet Exercices -->
+            <div id="content-exercise" class="tab-content active space-y-6">
+                <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap">
+                    <button data-mode="mix" class="mode-btn">🚀 Mix</button>
+                    <button data-mode="flashcard-es-fr" class="mode-btn">🇪🇸 → 🇫🇷 Flashcard</button>
+                    <button data-mode="flashcard-fr-es" class="mode-btn">🇫🇷 → 🇪🇸 Flashcard</button>
+                    <button data-mode="qcm" class="mode-btn">🧠 QCM</button>
+                </div>
+
+                <div class="flex justify-center gap-2 flex-wrap">
+                    <button id="review-filter-btn" class="filter-btn">🎯 Réviser uniquement les mots à réviser</button>
+                    <button id="correct-filter-btn" class="filter-btn">✅ Réviser uniquement les mots corrects</button>
+                    <button id="custom-filter-btn" class="filter-btn">⭐ Réviser uniquement mes mots choisis</button>
+                </div>
+                
+                <div id="exercise-container" class="h-64 sm:h-72">
+                    <!-- L'exercice (carte ou QCM) sera injecté ici -->
+                </div>
+                
+                <div id="answer-section" class="mt-4 space-y-3 min-h-[120px]">
+                    <input type="text" id="answer-input" placeholder="Écrivez la traduction ici..." autocomplete="off" class="w-full max-w-md mx-auto block p-3 border border-gray-300 rounded-lg text-center text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <div id="qcm-options" class="flex flex-col items-center gap-3 w-full max-w-md mx-auto"></div>
+                    <div id="feedback" class="text-center min-h-[60px] font-semibold pt-2"></div>
+                </div>
+
+                <div id="controls" class="flex justify-center gap-4 flex-wrap">
+                     <button id="check-btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105">
+                        Vérifier
+                    </button>
+                    <button id="dont-know-btn" class="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105">
+                        Je ne sais pas
+                    </button>
+                    <button id="accept-answer-btn" class="hidden bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105">
+                        Accepter ma réponse
+                    </button>
+                    <button id="next-btn" class="hidden bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
+                        Mot Suivant ➡️
+                    </button>
+                </div>
             </div>
 
-            <div id="controls" class="flex justify-center gap-4 flex-wrap">
-                 <button id="check-btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105">
-                    Vérifier
-                </button>
-                <button id="dont-know-btn" class="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105">
-                    Je ne sais pas
-                </button>
-                <button id="accept-answer-btn" class="hidden bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105">
-                    Accepter ma réponse
-                </button>
-                <button id="next-btn" class="hidden bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
-                    Mot Suivant ➡️
-                </button>
+            <!-- Contenu onglet Liste des mots -->
+            <div id="content-wordlist" class="tab-content space-y-4">
+                <div class="bg-white p-6 rounded-xl shadow">
+                    <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
+                    <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
+                    
+                    <div class="space-y-2 max-h-96 overflow-y-auto">
+                        <div id="words-list-container">
+                            <!-- Les mots seront injectés ici -->
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                        <button id="save-custom-selection" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">
+                            💾 Sauvegarder ma sélection
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -343,11 +405,14 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.3 - 15/01/2025 14:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.4 - 15/01/2025 15:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+
+            // ⭐ CONFIGURATION CENTRALISÉE - Lien Google Sheet unique
+            const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxY8JQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
 
             const state = {
                 words: [],
@@ -357,6 +422,7 @@
                 currentQuestion: {}, // { type, word, options, answer }
                 sessionMistakes: [], // Mots ratés pendant cette session
                 sessionCorrect: [], // Mots corrects pendant cette session
+                customSelection: [], // Mots sélectionnés manuellement par l'enfant
                 sessionStats: {
                     total: 0,
                     correct: 0,
@@ -368,10 +434,12 @@
                 lastUserAnswer: '', // Pour pouvoir l'afficher dans le feedback
                 reviewFilter: false, // Filtre pour ne réviser que les mots à réviser
                 correctFilter: false, // Filtre pour ne réviser que les mots corrects
+                customFilter: false, // Filtre pour ne réviser que les mots choisis par l'enfant
                 sessionDuration: 0, // Durée de session en minutes
                 sessionEndTime: null,
                 twoMinuteWarningShown: false,
                 isFirstSession: true, // Pour savoir si c'est la première session
+                currentTab: 'exercise', // 'exercise' ou 'wordlist'
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -394,10 +462,19 @@
             const sessionTimerContainer = document.getElementById('session-timer-container');
             const reviewFilterBtn = document.getElementById('review-filter-btn');
             const correctFilterBtn = document.getElementById('correct-filter-btn');
+            const customFilterBtn = document.getElementById('custom-filter-btn');
             const resetSessionBtn = document.getElementById('reset-session-btn');
             const wordsTableContainer = document.getElementById('words-table-container');
             const toggleWordsTableBtn = document.getElementById('toggle-words-table');
             const wordsTableBody = document.getElementById('words-table-body');
+            const wordsListContainer = document.getElementById('words-list-container');
+            const saveCustomSelectionBtn = document.getElementById('save-custom-selection');
+
+            // Éléments onglets
+            const tabExercise = document.getElementById('tab-exercise');
+            const tabWordlist = document.getElementById('tab-wordlist');
+            const contentExercise = document.getElementById('content-exercise');
+            const contentWordlist = document.getElementById('content-wordlist');
 
             // Éléments modals
             const sessionDurationModal = document.getElementById('session-duration-modal');
@@ -408,6 +485,7 @@
             const newSheetUrlInput = document.getElementById('new-sheet-url');
             const useExampleBtn = document.getElementById('use-example-btn');
             const validateNewSheetBtn = document.getElementById('validate-new-sheet-btn');
+            const exampleUrlDisplay = document.getElementById('example-url-display');
 
             // Éléments des statistiques de session
             const sessionTotal = document.getElementById('session-total');
@@ -417,6 +495,98 @@
             const sessionAccepted = document.getElementById('session-accepted');
 
             let timerInterval = null;
+
+            // Gestion des onglets
+            const switchTab = (tabName) => {
+                state.currentTab = tabName;
+                
+                // Mise à jour des onglets
+                if (tabName === 'exercise') {
+                    tabExercise.classList.add('active');
+                    tabWordlist.classList.remove('active');
+                    contentExercise.classList.add('active');
+                    contentWordlist.classList.remove('active');
+                } else {
+                    tabExercise.classList.remove('active');
+                    tabWordlist.classList.add('active');
+                    contentExercise.classList.remove('active');
+                    contentWordlist.classList.add('active');
+                    renderWordsList();
+                }
+            };
+
+            tabExercise.addEventListener('click', () => switchTab('exercise'));
+            tabWordlist.addEventListener('click', () => switchTab('wordlist'));
+
+            // Rendu de la liste des mots avec cases à cocher
+            const renderWordsList = () => {
+                wordsListContainer.innerHTML = '';
+                
+                if (state.words.length === 0) {
+                    wordsListContainer.innerHTML = '<p class="text-gray-500 text-center">Aucun mot chargé</p>';
+                    return;
+                }
+
+                state.words.forEach((word, index) => {
+                    const isSelected = state.customSelection.includes(word.spanish);
+                    const levelBadge = word.count >= state.learnedThreshold 
+                        ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Maîtrisé</span>'
+                        : `<span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">${word.count}/${state.learnedThreshold}</span>`;
+                    
+                    const wordItem = document.createElement('div');
+                    wordItem.className = 'word-item flex items-center justify-between p-3 border border-gray-200 rounded-lg';
+                    wordItem.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" 
+                                   class="word-checkbox" 
+                                   data-word="${word.spanish}"
+                                   ${isSelected ? 'checked' : ''}>
+                            <div>
+                                <span class="font-medium text-blue-700">${word.spanish}</span>
+                                <span class="text-gray-500 mx-2">→</span>
+                                <span class="text-gray-700">${word.french}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${levelBadge}
+                            ${isSelected ? '<span class="text-yellow-500">⭐</span>' : ''}
+                        </div>
+                    `;
+                    
+                    wordsListContainer.appendChild(wordItem);
+                });
+            };
+
+            // Sauvegarde de la sélection personnalisée
+            const saveCustomSelection = () => {
+                const checkboxes = document.querySelectorAll('.word-checkbox:checked');
+                state.customSelection = Array.from(checkboxes).map(cb => cb.dataset.word);
+                
+                localStorage.setItem('spanishAppCustomSelection', JSON.stringify(state.customSelection));
+                
+                // Feedback visuel
+                saveCustomSelectionBtn.textContent = '✅ Sauvegardé !';
+                saveCustomSelectionBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                saveCustomSelectionBtn.classList.add('bg-green-500');
+                
+                setTimeout(() => {
+                    saveCustomSelectionBtn.textContent = '💾 Sauvegarder ma sélection';
+                    saveCustomSelectionBtn.classList.remove('bg-green-500');
+                    saveCustomSelectionBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                }, 2000);
+                
+                renderWordsList(); // Re-render pour afficher les étoiles
+            };
+
+            saveCustomSelectionBtn.addEventListener('click', saveCustomSelection);
+
+            // Chargement de la sélection personnalisée
+            const loadCustomSelection = () => {
+                const saved = localStorage.getItem('spanishAppCustomSelection');
+                if (saved) {
+                    state.customSelection = JSON.parse(saved);
+                }
+            };
 
             // Gestion de la session duration
             const showSessionDurationModal = () => {
@@ -428,6 +598,8 @@
             };
 
             const showSheetErrorModal = () => {
+                // Afficher l'URL d'exemple
+                exampleUrlDisplay.textContent = GOOGLE_SHEET_URL;
                 sheetErrorModal.classList.remove('hidden');
             };
 
@@ -460,8 +632,7 @@
 
             // Event listeners pour la modal d'erreur de sheet
             useExampleBtn.addEventListener('click', () => {
-                const exampleUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxYJQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
-                newSheetUrlInput.value = exampleUrl;
+                newSheetUrlInput.value = GOOGLE_SHEET_URL;
             });
 
             validateNewSheetBtn.addEventListener('click', () => {
@@ -639,6 +810,7 @@
                     if (newWords.length > 0) {
                         localStorage.setItem('spanishAppSheetUrl', url);
                         loadState(newWords);
+                        loadCustomSelection(); // Charger la sélection personnalisée
                         saveState();
                         sheetFeedback.textContent = `✅ ${newWords.length} mots chargés !`;
                         sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-green-600';
@@ -847,6 +1019,11 @@
                     wordsPool = state.words
                         .map((word, index) => ({ ...word, originalIndex: index }))
                         .filter(word => state.sessionCorrect.find(correct => correct.spanish === word.spanish));
+                } else if (state.customFilter && state.customSelection.length > 0) {
+                    // Mode révision personnalisée: ne prendre que les mots sélectionnés par l'enfant
+                    wordsPool = state.words
+                        .map((word, index) => ({ ...word, originalIndex: index }))
+                        .filter(word => state.customSelection.includes(word.spanish));
                 } else {
                     // Mode normal: tous les mots non maîtrisés
                     wordsPool = state.words
@@ -1078,6 +1255,10 @@
                     `;
                     nextBtn.classList.remove('hidden');
                     nextBtn.focus();
+                    
+                    // 🔧 FIX: Ne pas retourner la carte quand c'est correct
+                    // (Anciennement on avait : exerciseContainer.querySelector('.card')?.classList.add('is-flipped'))
+                    
                 } else {
                     word.count = 0;
                     state.sessionStats.incorrect++;
@@ -1101,6 +1282,11 @@
                     acceptAnswerBtn.classList.remove('hidden');
                     acceptAnswerBtn.onclick = handleAcceptAnswer;
                     nextBtn.classList.remove('hidden');
+                    
+                    // Montrer la carte retournée pour les flashcards UNIQUEMENT si incorrecte
+                    if (type !== 'qcm') {
+                        exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
+                    }
                 }
                 
                 if (type === 'qcm') {
@@ -1108,8 +1294,6 @@
                         if (btn.textContent === correctAnswerText) btn.className += ' bg-green-200 border-green-500';
                         else if (btn.textContent === userAnswer && !isCorrect) btn.className += ' bg-red-200 border-red-500';
                     });
-                } else {
-                    exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
                 }
                 
                 updateSessionStats();
@@ -1126,15 +1310,18 @@
             };
 
             const init = async () => {
-                const userProvidedUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxYJQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
-                sheetUrlInput.value = userProvidedUrl;
+                // Utilisation de la constante centralisée
+                sheetUrlInput.value = GOOGLE_SHEET_URL;
                 
                 document.querySelector(`[data-mode="${state.exerciseMode}"]`).classList.add('active');
+                
+                // Charger la sélection personnalisée
+                loadCustomSelection();
                 
                 // Demander la durée de session au lancement
                 showSessionDurationModal();
                 
-                await fetchAndParseSheet(userProvidedUrl);
+                await fetchAndParseSheet(GOOGLE_SHEET_URL);
             };
             
             nextBtn.addEventListener('click', startNextExercise);
@@ -1146,9 +1333,12 @@
             reviewFilterBtn.addEventListener('click', () => {
                 state.reviewFilter = !state.reviewFilter;
                 if (state.reviewFilter) {
-                    state.correctFilter = false; // Désactiver l'autre filtre
+                    state.correctFilter = false; // Désactiver les autres filtres
+                    state.customFilter = false;
                     correctFilterBtn.classList.remove('active-correct');
+                    customFilterBtn.classList.remove('active-review');
                     correctFilterBtn.textContent = '✅ Réviser uniquement les mots corrects';
+                    customFilterBtn.textContent = '⭐ Réviser uniquement mes mots choisis';
                     
                     reviewFilterBtn.classList.add('active-review');
                     reviewFilterBtn.textContent = '🎯 Mode révision activé';
@@ -1163,15 +1353,38 @@
             correctFilterBtn.addEventListener('click', () => {
                 state.correctFilter = !state.correctFilter;
                 if (state.correctFilter) {
-                    state.reviewFilter = false; // Désactiver l'autre filtre
+                    state.reviewFilter = false; // Désactiver les autres filtres
+                    state.customFilter = false;
                     reviewFilterBtn.classList.remove('active-review');
+                    customFilterBtn.classList.remove('active-review');
                     reviewFilterBtn.textContent = '🎯 Réviser uniquement les mots à réviser';
+                    customFilterBtn.textContent = '⭐ Réviser uniquement mes mots choisis';
                     
                     correctFilterBtn.classList.add('active-correct');
                     correctFilterBtn.textContent = '✅ Mode mots corrects activé';
                 } else {
                     correctFilterBtn.classList.remove('active-correct');
                     correctFilterBtn.textContent = '✅ Réviser uniquement les mots corrects';
+                }
+                startNextExercise(); // Redémarrer avec le nouveau filtre
+            });
+
+            // Gestionnaire du filtre personnalisé
+            customFilterBtn.addEventListener('click', () => {
+                state.customFilter = !state.customFilter;
+                if (state.customFilter) {
+                    state.reviewFilter = false; // Désactiver les autres filtres
+                    state.correctFilter = false;
+                    reviewFilterBtn.classList.remove('active-review');
+                    correctFilterBtn.classList.remove('active-correct');
+                    reviewFilterBtn.textContent = '🎯 Réviser uniquement les mots à réviser';
+                    correctFilterBtn.textContent = '✅ Réviser uniquement les mots corrects';
+                    
+                    customFilterBtn.classList.add('active-review');
+                    customFilterBtn.textContent = '⭐ Mode mots choisis activé';
+                } else {
+                    customFilterBtn.classList.remove('active-review');
+                    customFilterBtn.textContent = '⭐ Réviser uniquement mes mots choisis';
                 }
                 startNextExercise(); // Redémarrer avec le nouveau filtre
             });
