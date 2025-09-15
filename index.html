@@ -56,52 +56,6 @@
             color: white;
             border-color: #3b82f6;
         }
-        .tab-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 2rem;
-        }
-        .tab-btn {
-            position: relative;
-            padding: 1rem 2rem;
-            font-weight: 600;
-            font-size: 1rem;
-            border: none;
-            background: transparent;
-            color: #64748b;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            border-radius: 0.75rem 0.75rem 0 0;
-        }
-        .tab-btn:hover {
-            color: #3b82f6;
-            background-color: #f1f5f9;
-        }
-        .tab-btn.active {
-            color: #3b82f6;
-            background-color: white;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .tab-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-            border-radius: 3px 3px 0 0;
-        }
-        .tab-content {
-            display: none;
-            background: white;
-            border-radius: 0 0 1rem 1rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-            padding: 1.5rem;
-        }
-        .tab-content.active {
-            display: block;
-        }
         .qcm-option-btn {
             transition: all 0.2s;
             border: 1px solid #d1d5db;
@@ -241,6 +195,14 @@
             border-radius: 0.375rem;
             font-weight: 500;
         }
+        .exam-date-badge {
+            background-color: #fef3c7;
+            color: #92400e;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+        }
         .filter-controls {
             background-color: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -296,13 +258,13 @@
         .config-menu {
             position: fixed;
             top: 1rem;
-            left: 1rem;
+            right: 1rem;
             z-index: 40;
         }
         .config-dropdown {
             position: absolute;
             top: 100%;
-            left: 0;
+            right: 0;
             background: white;
             border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
@@ -416,16 +378,24 @@
             <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
             <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
             
-            <!-- Filtre par date dans le modal -->
+            <!-- Filtres dans le modal -->
             <div class="filter-controls">
-                <div class="flex flex-wrap items-center justify-center gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="flex items-center gap-2">
-                        <label for="date-filter-modal" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
-                        <select id="date-filter-modal" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                        <label for="date-filter-modal" class="text-sm font-medium text-gray-700">📅 Date cours :</label>
+                        <select id="date-filter-modal" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white flex-1">
                             <option value="">Toutes les dates</option>
                         </select>
-                        <button id="clear-date-filter-modal" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
                     </div>
+                    <div class="flex items-center gap-2">
+                        <label for="exam-date-filter-modal" class="text-sm font-medium text-gray-700">📋 Date examen :</label>
+                        <select id="exam-date-filter-modal" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white flex-1">
+                            <option value="">Toutes les dates</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-2 justify-center">
+                    <button id="clear-date-filter-modal" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer filtres</button>
                 </div>
             </div>
 
@@ -461,17 +431,12 @@
                 <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Révision des mots de vocabulaire de Clémence LOPEZ</h1>
                 <div class="mt-2 flex justify-center items-center gap-4">
                     <div class="timer text-blue-600" id="session-timer-container">⏱️ <span id="session-timer">00:00</span></div>
-                    <button id="reset-session-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm">🔄 Reset Session</button>
+                    <button id="reset-session-btn" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full text-sm transition-colors" title="Reset Session">🔄</button>
                 </div>
             </header>
 
-            <!-- Onglets améliorés -->
-            <div class="tab-container">
-                <button id="tab-exercise" class="tab-btn active">🎯 Exercices</button>
-            </div>
-
-            <!-- Contenu onglet Exercices -->
-            <div id="content-exercise" class="tab-content active">
+            <!-- Section exercices (sans onglet) -->
+            <div id="content-exercise" class="bg-white rounded-xl shadow-lg p-6">
                 <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap mb-6">
                     <button data-mode="mix" class="mode-btn">🚀 Mix</button>
                     <button data-mode="flashcard-es-fr" class="mode-btn">🇪🇸 → 🇫🇷 Flashcard</button>
@@ -506,7 +471,7 @@
                     <span class="mx-2">→ Mot suivant</span>
                     <span class="mx-2">↵ Valider</span>
                     <span class="mx-2">↑ Accepter réponse</span>
-                    <span class="mx-2">Espace Voir réponse (maintenir)</span>
+                    <span class="mx-2">CTRL Voir réponse (maintenir)</span>
                 </div>
                 
                 <div id="exercise-container" class="h-64 sm:h-72">
@@ -600,9 +565,10 @@
                         <table class="w-full text-sm">
                             <thead class="bg-gray-100 sticky top-0">
                                 <tr>
-                                    <th class="text-left p-2 border-b">Date</th>
+                                    <th class="text-left p-2 border-b">Date cours</th>
                                     <th class="text-left p-2 border-b">Espagnol</th>
                                     <th class="text-left p-2 border-b">Français</th>
+                                    <th class="text-left p-2 border-b">Date examen</th>
                                     <th class="text-center p-2 border-b">Niveau</th>
                                 </tr>
                             </thead>
@@ -618,7 +584,7 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.8 - 15/01/2025 17:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.9 - 15/01/2025 17:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -629,7 +595,8 @@
 
             const state = {
                 words: [],
-                availableDates: [], // Dates disponibles dans les données
+                availableDates: [], // Dates de cours disponibles dans les données
+                availableExamDates: [], // Dates d'examen disponibles dans les données
                 currentWordIndex: null,
                 wordHistory: [], // Historique des mots vus pour navigation
                 historyPosition: -1, // Position actuelle dans l'historique
@@ -639,7 +606,8 @@
                 sessionMistakes: [], // Mots ratés pendant cette session
                 sessionCorrect: [], // Mots corrects pendant cette session
                 customSelection: [], // Mots sélectionnés manuellement par l'enfant
-                dateFilter: null, // Filtre par date
+                dateFilter: null, // Filtre par date de cours
+                examDateFilter: null, // Filtre par date d'examen
                 sortByDateAsc: false, // Tri par date croissant ou décroissant (défaut décroissant)
                 sessionStats: {
                     total: 0,
@@ -657,8 +625,7 @@
                 sessionEndTime: null,
                 twoMinuteWarningShown: false,
                 isFirstSession: true, // Pour savoir si c'est la première session
-                currentTab: 'exercise', // 'exercise' ou 'wordlist'
-                spacePressed: false, // Pour gérer la touche espace
+                ctrlPressed: false, // Pour gérer la touche Ctrl
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -693,11 +660,8 @@
             const clearDateFilterBtn = document.getElementById('clear-date-filter');
             const sortByDateBtn = document.getElementById('sort-by-date');
             const dateFilterModalSelect = document.getElementById('date-filter-modal');
+            const examDateFilterModalSelect = document.getElementById('exam-date-filter-modal');
             const clearDateFilterModalBtn = document.getElementById('clear-date-filter-modal');
-
-            // Éléments onglets
-            const tabExercise = document.getElementById('tab-exercise');
-            const contentExercise = document.getElementById('content-exercise');
 
             // Éléments modals
             const sessionDurationModal = document.getElementById('session-duration-modal');
@@ -764,12 +728,24 @@
             // Construction de la liste des dates disponibles
             const buildAvailableDates = () => {
                 const dateSet = new Set();
+                const examDateSet = new Set();
+                
                 state.words.forEach(word => {
                     if (word.date) {
                         dateSet.add(word.date);
                     }
+                    if (word.examDate) {
+                        examDateSet.add(word.examDate);
+                    }
                 });
+                
                 state.availableDates = Array.from(dateSet).sort((a, b) => {
+                    const dateA = parseDate(a) || new Date(0);
+                    const dateB = parseDate(b) || new Date(0);
+                    return dateB - dateA; // Tri décroissant par défaut (plus récent en premier)
+                });
+                
+                state.availableExamDates = Array.from(examDateSet).sort((a, b) => {
                     const dateA = parseDate(a) || new Date(0);
                     const dateB = parseDate(b) || new Date(0);
                     return dateB - dateA; // Tri décroissant par défaut (plus récent en premier)
@@ -778,11 +754,11 @@
 
             // Mise à jour des selects de date
             const updateDateSelects = () => {
-                const updateSelect = (selectElement) => {
+                const updateSelect = (selectElement, dates) => {
                     const currentValue = selectElement.value;
                     selectElement.innerHTML = '<option value="">Toutes les dates</option>';
                     
-                    state.availableDates.forEach(date => {
+                    dates.forEach(date => {
                         const option = document.createElement('option');
                         option.value = date;
                         option.textContent = date;
@@ -793,14 +769,24 @@
                     });
                 };
 
-                updateSelect(dateFilterSelect);
-                updateSelect(dateFilterModalSelect);
+                updateSelect(dateFilterSelect, state.availableDates);
+                updateSelect(dateFilterModalSelect, state.availableDates);
+                updateSelect(examDateFilterModalSelect, state.availableExamDates);
             };
 
-            // Filtrage des mots par date
-            const filterWordsByDate = (words) => {
-                if (!state.dateFilter) return words;
-                return words.filter(word => word.date === state.dateFilter);
+            // Filtrage des mots par dates
+            const filterWordsByDates = (words) => {
+                let filteredWords = words;
+                
+                if (state.dateFilter) {
+                    filteredWords = filteredWords.filter(word => word.date === state.dateFilter);
+                }
+                
+                if (state.examDateFilter) {
+                    filteredWords = filteredWords.filter(word => word.examDate === state.examDateFilter);
+                }
+                
+                return filteredWords;
             };
 
             // Tri des mots par date
@@ -835,7 +821,7 @@
                 }
             };
 
-            // Gestion de la popup de réponse (espace)
+            // Gestion de la popup de réponse (Ctrl)
             const showAnswerPopup = () => {
                 if (currentAnswerPopup || !state.currentQuestion.word) return;
                 
@@ -901,7 +887,7 @@
                 wordsManagementModal.classList.add('hidden');
             });
 
-            // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER
+            // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER (CTRL au lieu d'espace)
             const handleKeyboard = (event) => {
                 // Ignorer si on est dans un modal
                 if (!sessionDurationModal.classList.contains('hidden') || 
@@ -932,10 +918,10 @@
                             handleAcceptAnswer();
                         }
                         break;
-                    case ' ': // Espace pour afficher la réponse
-                        if (!state.spacePressed) {
+                    case 'Control': // Ctrl pour afficher la réponse
+                        if (!state.ctrlPressed) {
                             event.preventDefault();
-                            state.spacePressed = true;
+                            state.ctrlPressed = true;
                             showAnswerPopup();
                         }
                         break;
@@ -943,8 +929,8 @@
             };
 
             const handleKeyUp = (event) => {
-                if (event.key === ' ' && state.spacePressed) {
-                    state.spacePressed = false;
+                if (event.key === 'Control' && state.ctrlPressed) {
+                    state.ctrlPressed = false;
                     hideAnswerPopup();
                 }
             };
@@ -1014,7 +1000,9 @@
             clearDateFilterBtn.addEventListener('click', () => {
                 dateFilterSelect.value = '';
                 dateFilterModalSelect.value = '';
+                examDateFilterModalSelect.value = '';
                 state.dateFilter = null;
+                state.examDateFilter = null;
                 renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
@@ -1030,10 +1018,19 @@
                 renderDashboard();
             });
 
+            examDateFilterModalSelect.addEventListener('change', (e) => {
+                state.examDateFilter = e.target.value || null;
+                renderWordsListModal();
+                renderWordsTable();
+                renderDashboard();
+            });
+
             clearDateFilterModalBtn.addEventListener('click', () => {
                 dateFilterSelect.value = '';
                 dateFilterModalSelect.value = '';
+                examDateFilterModalSelect.value = '';
                 state.dateFilter = null;
+                state.examDateFilter = null;
                 renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
@@ -1056,7 +1053,7 @@
                     return;
                 }
 
-                let filteredWords = filterWordsByDate(state.words);
+                let filteredWords = filterWordsByDates(state.words);
                 filteredWords = sortWordsByDate(filteredWords);
 
                 filteredWords.forEach((word, index) => {
@@ -1081,7 +1078,10 @@
                                     <span class="text-gray-700">${word.french}</span>
                                     <button class="speak-btn" onclick="speak('${word.french}', 'fr-FR')">🔊</button>
                                 </div>
-                                <div class="date-badge">${word.date || 'Sans date'}</div>
+                                <div class="flex gap-2 mt-1">
+                                    <div class="date-badge">${word.date || 'Sans date'}</div>
+                                    ${word.examDate ? `<div class="exam-date-badge">📋 ${word.examDate}</div>` : ''}
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -1119,7 +1119,9 @@
                     saveCustomSelectionModal.textContent = '💾 Sauvegarder ma sélection';
                     saveCustomSelectionModal.classList.remove('bg-green-500');
                     saveCustomSelectionModal.classList.add('bg-blue-500', 'hover:bg-blue-600');
-                }, 2000);
+                    // Fermer la fenêtre après sauvegarde
+                    wordsManagementModal.classList.add('hidden');
+                }, 1000);
                 
                 renderWordsListModal(); // Re-render pour afficher les étoiles
             };
@@ -1292,12 +1294,12 @@
                 sheetFeedback.innerHTML = `${errorMessage}<br>Chargement de la liste par défaut.`;
                 sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-orange-600 font-semibold';
                 const defaultWords = [
-                    { spanish: 'Hola', french: 'Bonjour', date: '2025-01-10' },
-                    { spanish: 'Adiós', french: 'Au revoir', date: '2025-01-10' },
-                    { spanish: 'Gracias', french: 'Merci', date: '2025-01-12' },
-                    { spanish: 'Por favor', french: 'S\'il vous plaît', date: '2025-01-12' },
-                    { spanish: 'Sí', french: 'Oui', date: '2025-01-15' },
-                    { spanish: 'No', french: 'Non', date: '2025-01-15' }
+                    { spanish: 'Hola', french: 'Bonjour', date: '2025-01-10', examDate: '2025-01-20' },
+                    { spanish: 'Adiós', french: 'Au revoir', date: '2025-01-10', examDate: '2025-01-20' },
+                    { spanish: 'Gracias', french: 'Merci', date: '2025-01-12', examDate: '2025-01-22' },
+                    { spanish: 'Por favor', french: 'S\'il vous plaît', date: '2025-01-12', examDate: '2025-01-22' },
+                    { spanish: 'Sí', french: 'Oui', date: '2025-01-15', examDate: '2025-01-25' },
+                    { spanish: 'No', french: 'Non', date: '2025-01-15', examDate: '2025-01-25' }
                 ];
                 const savedProgress = localStorage.getItem('spanishAppProgress_default');
                 if(savedProgress && !state.isFirstSession) {
@@ -1349,9 +1351,10 @@
                         const columns = parseCsvRow(row);
                         if (columns.length >= 3 && columns[1] && columns[2]) {
                             return { 
-                                date: columns[0] || null, // Première colonne = date (brute)
+                                date: columns[0] || null, // Première colonne = date de cours
                                 spanish: columns[1], 
                                 french: columns[2],
+                                examDate: columns[3] || null, // Quatrième colonne = date d'examen
                             };
                         }
                         return null;
@@ -1382,7 +1385,7 @@
             const renderWordsTable = () => {
                 wordsTableBody.innerHTML = '';
                 
-                let filteredWords = filterWordsByDate(state.words);
+                let filteredWords = filterWordsByDates(state.words);
                 filteredWords = sortWordsByDate(filteredWords);
                 
                 filteredWords.forEach(word => {
@@ -1397,6 +1400,7 @@
                         <td class="p-2 text-xs">${word.date || 'Sans date'}</td>
                         <td class="p-2">${word.spanish}</td>
                         <td class="p-2">${word.french}</td>
+                        <td class="p-2 text-xs">${word.examDate || 'Sans date'}</td>
                         <td class="p-2 text-center">${levelBadge}</td>
                     `;
                     wordsTableBody.appendChild(row);
@@ -1439,10 +1443,8 @@
             const getFilteredWords = (words) => {
                 let filteredWords = words;
                 
-                // Appliquer le filtre par date si actif
-                if (state.dateFilter) {
-                    filteredWords = filterWordsByDate(filteredWords);
-                }
+                // Appliquer les filtres par date si actifs
+                filteredWords = filterWordsByDates(filteredWords);
                 
                 // Appliquer les filtres de mode si actifs
                 if (state.reviewFilter) {
@@ -1509,7 +1511,7 @@
                 
                 // Messages contextuels selon les filtres
                 if(toLearn.length === 0 && allWords.length > 0) {
-                    if (state.dateFilter || state.reviewFilter || state.correctFilter || state.customFilter) {
+                    if (state.dateFilter || state.examDateFilter || state.reviewFilter || state.correctFilter || state.customFilter) {
                         wordsToLearnList.innerHTML = `<li class="text-gray-400">Aucun mot à apprendre avec ce filtre.</li>`;
                     } else {
                         wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
@@ -2025,7 +2027,7 @@
                 });
             });
 
-            // ⌨️ AJOUT DU GESTIONNAIRE DE CLAVIER
+            // ⌨️ AJOUT DU GESTIONNAIRE DE CLAVIER (CTRL au lieu d'espace)
             document.addEventListener('keydown', handleKeyboard);
             document.addEventListener('keyup', handleKeyUp);
 
