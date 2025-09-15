@@ -126,9 +126,81 @@
             color: white;
             border-color: #16a34a;
         }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .collapsible-content.open {
+            max-height: 500px;
+        }
+        .session-timer.warning {
+            color: #dc2626 !important;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
+
+    <!-- Modal pour la durée de session -->
+    <div id="session-duration-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">🎯 Configuration de la session</h2>
+            <p class="text-gray-600 mb-4 text-center">Combien de temps veux-tu étudier aujourd'hui ?</p>
+            <div class="space-y-3">
+                <button class="duration-btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg" data-minutes="10">⚡ 10 minutes</button>
+                <button class="duration-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg" data-minutes="15">📚 15 minutes</button>
+                <button class="duration-btn w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg" data-minutes="20">🚀 20 minutes</button>
+                <button class="duration-btn w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg" data-minutes="30">💪 30 minutes</button>
+                <div class="flex items-center gap-2 mt-4">
+                    <input type="number" id="custom-duration" min="1" max="120" placeholder="Autre durée" class="flex-1 p-2 border border-gray-300 rounded">
+                    <span class="text-sm text-gray-500">minutes</span>
+                    <button id="custom-duration-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour nouveau lien Google Sheet -->
+    <div id="sheet-error-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold text-red-600 mb-4 text-center">❌ Erreur de chargement</h2>
+            <p class="text-gray-600 mb-4">La liste de mots n'a pas pu être chargée. Veuillez entrer un nouveau lien Google Sheet :</p>
+            <div class="space-y-3">
+                <input type="url" id="new-sheet-url" placeholder="https://docs.google.com/..." class="w-full p-3 border border-gray-300 rounded-lg">
+                <p class="text-xs text-gray-500">Exemple de lien valide :</p>
+                <p class="text-xs text-blue-600 bg-blue-50 p-2 rounded break-all">https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxYJQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv</p>
+                <div class="flex gap-2">
+                    <button id="use-example-btn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Utiliser l'exemple</button>
+                    <button id="validate-new-sheet-btn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">Valider</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="app" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
         
@@ -136,7 +208,8 @@
             <header class="text-center">
                 <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Révision des mots de vocabulaire de Clémence LOPEZ</h1>
                 <div class="mt-2 flex justify-center items-center gap-4">
-                    <div class="timer text-blue-600">⏱️ <span id="session-timer">00:00</span></div>
+                    <div class="timer text-blue-600" id="session-timer-container">⏱️ <span id="session-timer">00:00</span></div>
+                    <button id="reset-session-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 rounded text-sm">🔄 Reset Session</button>
                 </div>
             </header>
             
@@ -226,6 +299,32 @@
                 </div>
             </div>
 
+            <!-- Section tableau des mots -->
+            <div class="bg-white p-4 rounded-xl shadow">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-gray-700">📋 Liste complète des mots</h3>
+                    <button id="toggle-words-table" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded text-sm">
+                        👁️ Voir
+                    </button>
+                </div>
+                <div id="words-table-container" class="collapsible-content">
+                    <div class="max-h-96 overflow-y-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="text-left p-2 border-b">Espagnol</th>
+                                    <th class="text-left p-2 border-b">Français</th>
+                                    <th class="text-center p-2 border-b">Niveau</th>
+                                </tr>
+                            </thead>
+                            <tbody id="words-table-body">
+                                <!-- Les mots seront injectés ici -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <h2 class="text-2xl font-semibold mb-4 text-blue-600">Lien Google Sheet</h2>
                  <div class="bg-white p-4 rounded-xl shadow">
@@ -244,7 +343,7 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.1 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.3 - 15/01/2025 14:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -269,6 +368,10 @@
                 lastUserAnswer: '', // Pour pouvoir l'afficher dans le feedback
                 reviewFilter: false, // Filtre pour ne réviser que les mots à réviser
                 correctFilter: false, // Filtre pour ne réviser que les mots corrects
+                sessionDuration: 0, // Durée de session en minutes
+                sessionEndTime: null,
+                twoMinuteWarningShown: false,
+                isFirstSession: true, // Pour savoir si c'est la première session
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -288,8 +391,23 @@
             const nextBtn = document.getElementById('next-btn');
             const modeButtons = document.querySelectorAll('.mode-btn');
             const sessionTimer = document.getElementById('session-timer');
+            const sessionTimerContainer = document.getElementById('session-timer-container');
             const reviewFilterBtn = document.getElementById('review-filter-btn');
             const correctFilterBtn = document.getElementById('correct-filter-btn');
+            const resetSessionBtn = document.getElementById('reset-session-btn');
+            const wordsTableContainer = document.getElementById('words-table-container');
+            const toggleWordsTableBtn = document.getElementById('toggle-words-table');
+            const wordsTableBody = document.getElementById('words-table-body');
+
+            // Éléments modals
+            const sessionDurationModal = document.getElementById('session-duration-modal');
+            const sheetErrorModal = document.getElementById('sheet-error-modal');
+            const durationBtns = document.querySelectorAll('.duration-btn');
+            const customDurationBtn = document.getElementById('custom-duration-btn');
+            const customDurationInput = document.getElementById('custom-duration');
+            const newSheetUrlInput = document.getElementById('new-sheet-url');
+            const useExampleBtn = document.getElementById('use-example-btn');
+            const validateNewSheetBtn = document.getElementById('validate-new-sheet-btn');
 
             // Éléments des statistiques de session
             const sessionTotal = document.getElementById('session-total');
@@ -300,6 +418,61 @@
 
             let timerInterval = null;
 
+            // Gestion de la session duration
+            const showSessionDurationModal = () => {
+                sessionDurationModal.classList.remove('hidden');
+            };
+
+            const hideSessionDurationModal = () => {
+                sessionDurationModal.classList.add('hidden');
+            };
+
+            const showSheetErrorModal = () => {
+                sheetErrorModal.classList.remove('hidden');
+            };
+
+            const hideSheetErrorModal = () => {
+                sheetErrorModal.classList.add('hidden');
+            };
+
+            const setSessionDuration = (minutes) => {
+                state.sessionDuration = minutes;
+                state.sessionEndTime = Date.now() + (minutes * 60 * 1000);
+                state.twoMinuteWarningShown = false;
+                hideSessionDurationModal();
+                startTimer();
+            };
+
+            // Event listeners pour la modal de durée
+            durationBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const minutes = parseInt(btn.dataset.minutes);
+                    setSessionDuration(minutes);
+                });
+            });
+
+            customDurationBtn.addEventListener('click', () => {
+                const minutes = parseInt(customDurationInput.value);
+                if (minutes && minutes > 0 && minutes <= 120) {
+                    setSessionDuration(minutes);
+                }
+            });
+
+            // Event listeners pour la modal d'erreur de sheet
+            useExampleBtn.addEventListener('click', () => {
+                const exampleUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxYJQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
+                newSheetUrlInput.value = exampleUrl;
+            });
+
+            validateNewSheetBtn.addEventListener('click', () => {
+                const url = newSheetUrlInput.value.trim();
+                if (url) {
+                    hideSheetErrorModal();
+                    sheetUrlInput.value = url;
+                    fetchAndParseSheet(url);
+                }
+            });
+
             const startTimer = () => {
                 if (!state.sessionStats.startTime) {
                     state.sessionStats.startTime = Date.now();
@@ -308,10 +481,29 @@
                 if (timerInterval) clearInterval(timerInterval);
                 
                 timerInterval = setInterval(() => {
-                    const elapsed = Math.floor((Date.now() - state.sessionStats.startTime) / 1000);
+                    const now = Date.now();
+                    const elapsed = Math.floor((now - state.sessionStats.startTime) / 1000);
                     const minutes = Math.floor(elapsed / 60);
                     const seconds = elapsed % 60;
                     sessionTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    // Vérifier l'alerte 2 minutes avant la fin
+                    if (state.sessionEndTime && !state.twoMinuteWarningShown) {
+                        const timeLeft = state.sessionEndTime - now;
+                        const minutesLeft = Math.floor(timeLeft / (1000 * 60));
+                        
+                        if (minutesLeft <= 2 && minutesLeft > 0) {
+                            state.twoMinuteWarningShown = true;
+                            sessionTimerContainer.classList.add('warning');
+                            alert(`⏰ Plus que ${minutesLeft} minute(s) restante(s) dans votre session !`);
+                        }
+                        
+                        if (timeLeft <= 0) {
+                            clearInterval(timerInterval);
+                            alert('🎉 Session terminée ! Bravo pour votre travail !');
+                            sessionTimerContainer.classList.add('warning');
+                        }
+                    }
                 }, 1000);
             };
 
@@ -333,7 +525,22 @@
                     startTime: Date.now()
                 };
                 updateSessionStats();
-                startTimer();
+                if (state.sessionEndTime) {
+                    startTimer();
+                }
+            };
+
+            const resetSession = () => {
+                if (confirm('Êtes-vous sûr de vouloir recommencer la session à zéro ?')) {
+                    state.sessionMistakes = [];
+                    state.sessionCorrect = [];
+                    state.twoMinuteWarningShown = false;
+                    sessionTimerContainer.classList.remove('warning');
+                    resetSessionStats();
+                    showSessionDurationModal();
+                    renderDashboard();
+                    startNextExercise();
+                }
             };
 
             const saveState = () => {
@@ -349,14 +556,16 @@
             const loadState = (sheetData) => {
                  const sheetUrl = localStorage.getItem('spanishAppSheetUrl');
                  const savedProgress = sheetUrl ? localStorage.getItem(`spanishAppProgress_${sheetUrl}`) : null;
-                 if (savedProgress) {
+                 if (savedProgress && !state.isFirstSession) {
                      const progress = JSON.parse(savedProgress);
                      state.words = sheetData.map(sheetWord => {
                          const matchingProgress = progress.find(p => p.spanish === sheetWord.spanish);
                          return matchingProgress || { ...sheetWord, count: 0 };
                      });
                  } else {
+                     // Première session : tous les mots commencent à 0
                      state.words = sheetData.map(word => ({ ...word, count: 0 }));
+                     state.isFirstSession = false;
                  }
             };
             
@@ -372,10 +581,11 @@
                     { spanish: 'No', french: 'Non' }
                 ];
                 const savedProgress = localStorage.getItem('spanishAppProgress_default');
-                if(savedProgress) {
+                if(savedProgress && !state.isFirstSession) {
                     state.words = JSON.parse(savedProgress);
                 } else {
                     state.words = defaultWords.map(word => ({ ...word, count: 0 }));
+                    state.isFirstSession = false;
                 }
                 localStorage.removeItem('spanishAppSheetUrl'); // Clear invalid URL
                 saveState();
@@ -433,19 +643,45 @@
                         sheetFeedback.textContent = `✅ ${newWords.length} mots chargés !`;
                         sheetFeedback.className = 'text-xs text-center mt-2 h-auto text-green-600';
                          setTimeout(() => { sheetFeedback.textContent = '' }, 3000);
+                        renderWordsTable();
                         restartApp();
                     } else {
                          throw new Error("Aucun mot valide trouvé.");
                     }
                 } catch (error) {
                     console.error('Erreur de chargement du Google Sheet:', error);
-                    let errorMessage = '❌ Erreur. Vérifiez le lien.';
-                    if (error.status === 404) {
-                        errorMessage = '❌ Lien introuvable (404). La feuille est-elle bien "Publiée sur le web" ?';
-                    } else if (error.message.includes('Failed to fetch')) {
-                        errorMessage = '❌ Erreur réseau. Vérifiez votre connexion internet.';
-                    }
-                    loadDefaultWords(errorMessage);
+                    showSheetErrorModal();
+                }
+            };
+
+            const renderWordsTable = () => {
+                wordsTableBody.innerHTML = '';
+                state.words.forEach(word => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50';
+                    
+                    const levelBadge = word.count >= state.learnedThreshold 
+                        ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Maîtrisé</span>'
+                        : `<span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">${word.count}/${state.learnedThreshold}</span>`;
+                    
+                    row.innerHTML = `
+                        <td class="p-2">${word.spanish}</td>
+                        <td class="p-2">${word.french}</td>
+                        <td class="p-2 text-center">${levelBadge}</td>
+                    `;
+                    wordsTableBody.appendChild(row);
+                });
+            };
+
+            const toggleWordsTable = () => {
+                const isOpen = wordsTableContainer.classList.contains('open');
+                if (isOpen) {
+                    wordsTableContainer.classList.remove('open');
+                    toggleWordsTableBtn.innerHTML = '👁️ Voir';
+                } else {
+                    wordsTableContainer.classList.add('open');
+                    toggleWordsTableBtn.innerHTML = '🙈 Cacher';
+                    renderWordsTable();
                 }
             };
             
@@ -503,7 +739,13 @@
                 learned.forEach(w => wordsLearnedList.appendChild(createWordListItem(w, 'bg-green-100 text-green-700', false)));
                 
                 if(learned.length === 0) wordsLearnedList.innerHTML = `<li class="text-gray-400">Aucun mot maîtrisé.</li>`;
-                if(toLearn.length === 0 && state.words.length > 0) wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
+                
+                // Lors de la première session, afficher message spécial
+                if(toLearn.length === 0 && state.words.length > 0) {
+                    wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
+                } else if (state.isFirstSession && toLearn.length === state.words.length) {
+                    wordsToLearnList.innerHTML = `<li class="text-gray-400">Prêt à commencer l'apprentissage ! 🚀</li>`;
+                }
             };
 
             const addTooltipToElement = (element, word) => {
@@ -889,12 +1131,16 @@
                 
                 document.querySelector(`[data-mode="${state.exerciseMode}"]`).classList.add('active');
                 
-                resetSessionStats();
+                // Demander la durée de session au lancement
+                showSessionDurationModal();
+                
                 await fetchAndParseSheet(userProvidedUrl);
             };
             
             nextBtn.addEventListener('click', startNextExercise);
             loadSheetBtn.addEventListener('click', () => { if (sheetUrlInput.value.trim()) fetchAndParseSheet(sheetUrlInput.value.trim()); });
+            resetSessionBtn.addEventListener('click', resetSession);
+            toggleWordsTableBtn.addEventListener('click', toggleWordsTable);
             
             // Gestionnaire du filtre de révision
             reviewFilterBtn.addEventListener('click', () => {
