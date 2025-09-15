@@ -82,6 +82,7 @@
             white-space: nowrap;
             z-index: 10;
             margin-bottom: 0.25rem;
+            pointer-events: none;
         }
         .tooltip:hover::before {
             content: '';
@@ -92,6 +93,7 @@
             border: 4px solid transparent;
             border-top-color: #1f2937;
             z-index: 10;
+            pointer-events: none;
         }
         .feedback-box {
             background-color: #f3f4f6;
@@ -114,10 +116,15 @@
             transition: all 0.2s;
             background-color: white;
         }
-        .filter-btn.active {
+        .filter-btn.active-review {
             background-color: #dc2626;
             color: white;
             border-color: #dc2626;
+        }
+        .filter-btn.active-correct {
+            background-color: #16a34a;
+            color: white;
+            border-color: #16a34a;
         }
     </style>
 </head>
@@ -140,8 +147,9 @@
                 <button data-mode="qcm" class="mode-btn">🧠 QCM</button>
             </div>
 
-            <div class="flex justify-center">
+            <div class="flex justify-center gap-2 flex-wrap">
                 <button id="review-filter-btn" class="filter-btn">🎯 Réviser uniquement les mots à réviser</button>
+                <button id="correct-filter-btn" class="filter-btn">✅ Réviser uniquement les mots corrects</button>
             </div>
             
             <div id="exercise-container" class="h-64 sm:h-72">
@@ -260,6 +268,7 @@
                 },
                 lastUserAnswer: '', // Pour pouvoir l'afficher dans le feedback
                 reviewFilter: false, // Filtre pour ne réviser que les mots à réviser
+                correctFilter: false, // Filtre pour ne réviser que les mots corrects
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -280,6 +289,7 @@
             const modeButtons = document.querySelectorAll('.mode-btn');
             const sessionTimer = document.getElementById('session-timer');
             const reviewFilterBtn = document.getElementById('review-filter-btn');
+            const correctFilterBtn = document.getElementById('correct-filter-btn');
 
             // Éléments des statistiques de session
             const sessionTotal = document.getElementById('session-total');
@@ -439,6 +449,22 @@
                 }
             };
             
+            const createWordListItem = (word, colorClass, isSessionWord = false) => {
+                const li = document.createElement('li');
+                li.className = `tooltip ${isSessionWord ? '' : 'flex justify-between items-center'}`;
+                li.setAttribute('data-tooltip', word.french);
+                
+                if (isSessionWord) {
+                    // Pour les listes de session (pas de compteur)
+                    li.innerHTML = `<span class="${colorClass}">${word.spanish}</span>`;
+                } else {
+                    // Pour les listes normales (avec compteur)
+                    li.innerHTML = `<span>${word.spanish}</span><span class="text-xs font-mono ${colorClass} rounded-full px-2 py-0.5">${word.count}</span>`;
+                }
+                
+                return li;
+            };
+            
             const renderDashboard = () => {
                 wordsCorrectSessionList.innerHTML = '';
                 wordsToReviewList.innerHTML = '';
@@ -455,11 +481,7 @@
                     wordsCorrectSessionList.innerHTML = `<li class="text-gray-400">Aucun mot correct pour l'instant !</li>`;
                 } else {
                     state.sessionCorrect.forEach(word => {
-                        const li = document.createElement('li');
-                        li.className = 'tooltip';
-                        li.setAttribute('data-tooltip', word.french);
-                        li.innerHTML = `<span class="text-green-600">${word.spanish}</span>`;
-                        wordsCorrectSessionList.appendChild(li);
+                        wordsCorrectSessionList.appendChild(createWordListItem(word, 'text-green-600', true));
                     });
                 }
 
@@ -468,11 +490,7 @@
                     wordsToReviewList.innerHTML = `<li class="text-gray-400">Aucune erreur pour l'instant !</li>`;
                 } else {
                     state.sessionMistakes.forEach(word => {
-                        const li = document.createElement('li');
-                        li.className = 'tooltip';
-                        li.setAttribute('data-tooltip', word.french);
-                        li.innerHTML = `<span class="text-red-600">${word.spanish}</span>`;
-                        wordsToReviewList.appendChild(li);
+                        wordsToReviewList.appendChild(createWordListItem(word, 'text-red-600', true));
                     });
                 }
 
@@ -481,18 +499,17 @@
                 toLearn.sort((a, b) => a.count - b.count || a.spanish.localeCompare(b.spanish));
                 learned.sort((a, b) => b.count - a.count || a.spanish.localeCompare(b.spanish));
                 
-                const createLi = (word, colorClass) => {
-                    const li = document.createElement('li');
-                    li.className = 'flex justify-between items-center tooltip';
-                    li.setAttribute('data-tooltip', word.french);
-                    li.innerHTML = `<span>${word.spanish}</span><span class="text-xs font-mono ${colorClass} rounded-full px-2 py-0.5">${word.count}</span>`;
-                    return li;
-                };
-                toLearn.forEach(w => wordsToLearnList.appendChild(createLi(w, 'bg-orange-100 text-orange-700')));
-                learned.forEach(w => wordsLearnedList.appendChild(createLi(w, 'bg-green-100 text-green-700')));
+                toLearn.forEach(w => wordsToLearnList.appendChild(createWordListItem(w, 'bg-orange-100 text-orange-700', false)));
+                learned.forEach(w => wordsLearnedList.appendChild(createWordListItem(w, 'bg-green-100 text-green-700', false)));
                 
                 if(learned.length === 0) wordsLearnedList.innerHTML = `<li class="text-gray-400">Aucun mot maîtrisé.</li>`;
                 if(toLearn.length === 0 && state.words.length > 0) wordsToLearnList.innerHTML = `<li class="text-gray-400">Bravo !</li>`;
+            };
+
+            const addTooltipToElement = (element, word) => {
+                element.classList.add('tooltip');
+                const tooltipText = state.currentQuestion.type === 'flashcard-fr-es' ? word.spanish : word.french;
+                element.setAttribute('data-tooltip', tooltipText);
             };
 
             const renderExercise = () => {
@@ -542,7 +559,7 @@
                 exerciseContainer.innerHTML = `
                     <div class="card w-full h-full">
                         <div class="card-inner">
-                            <div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold">${questionText}</div>
+                            <div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold tooltip" data-tooltip="${answerText}">${questionText}</div>
                             <div class="card-face card-back bg-purple-200 text-purple-800 text-xl md:text-2xl font-semibold">${answerText}</div>
                         </div>
                     </div>`;
@@ -556,8 +573,9 @@
                     return; 
                 }
 
-                // Afficher la question dans le conteneur d'exercice
-                exerciseContainer.innerHTML = `<div class="qcm-question">${question.word.spanish}</div>`;
+                // Afficher la question dans le conteneur d'exercice avec tooltip
+                const tooltipText = question.word.french;
+                exerciseContainer.innerHTML = `<div class="qcm-question tooltip" data-tooltip="${tooltipText}">${question.word.spanish}</div>`;
                 
                 // Afficher le bouton "Je ne sais pas" pour les QCM aussi
                 dontKnowBtn.classList.remove('hidden');
@@ -582,6 +600,11 @@
                     wordsPool = state.words
                         .map((word, index) => ({ ...word, originalIndex: index }))
                         .filter(word => state.sessionMistakes.find(mistake => mistake.spanish === word.spanish));
+                } else if (state.correctFilter && state.sessionCorrect.length > 0) {
+                    // Mode révision des mots corrects: ne prendre que les mots corrects de la session
+                    wordsPool = state.words
+                        .map((word, index) => ({ ...word, originalIndex: index }))
+                        .filter(word => state.sessionCorrect.find(correct => correct.spanish === word.spanish));
                 } else {
                     // Mode normal: tous les mots non maîtrisés
                     wordsPool = state.words
@@ -877,11 +900,32 @@
             reviewFilterBtn.addEventListener('click', () => {
                 state.reviewFilter = !state.reviewFilter;
                 if (state.reviewFilter) {
-                    reviewFilterBtn.classList.add('active');
+                    state.correctFilter = false; // Désactiver l'autre filtre
+                    correctFilterBtn.classList.remove('active-correct');
+                    correctFilterBtn.textContent = '✅ Réviser uniquement les mots corrects';
+                    
+                    reviewFilterBtn.classList.add('active-review');
                     reviewFilterBtn.textContent = '🎯 Mode révision activé';
                 } else {
-                    reviewFilterBtn.classList.remove('active');
+                    reviewFilterBtn.classList.remove('active-review');
                     reviewFilterBtn.textContent = '🎯 Réviser uniquement les mots à réviser';
+                }
+                startNextExercise(); // Redémarrer avec le nouveau filtre
+            });
+
+            // Gestionnaire du filtre des mots corrects
+            correctFilterBtn.addEventListener('click', () => {
+                state.correctFilter = !state.correctFilter;
+                if (state.correctFilter) {
+                    state.reviewFilter = false; // Désactiver l'autre filtre
+                    reviewFilterBtn.classList.remove('active-review');
+                    reviewFilterBtn.textContent = '🎯 Réviser uniquement les mots à réviser';
+                    
+                    correctFilterBtn.classList.add('active-correct');
+                    correctFilterBtn.textContent = '✅ Mode mots corrects activé';
+                } else {
+                    correctFilterBtn.classList.remove('active-correct');
+                    correctFilterBtn.textContent = '✅ Réviser uniquement les mots corrects';
                 }
                 startNextExercise(); // Redémarrer avec le nouveau filtre
             });
