@@ -172,19 +172,44 @@
                 sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-gray-500';
                 try {
                     const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+                    if (!response.ok) {
+                        const error = new Error(`Erreur réseau: ${response.statusText} (status: ${response.status})`);
+                        error.status = response.status;
+                        throw error;
+                    }
                     const csvText = await response.text();
-                    const rows = csvText.split('\n').slice(1);
+
+                    const parseCsvRow = (row) => {
+                        const result = [];
+                        let current = '';
+                        let inQuotes = false;
+                        for (const char of row) {
+                            if (char === '"') {
+                                inQuotes = !inQuotes;
+                            } else if (char === ',' && !inQuotes) {
+                                result.push(current);
+                                current = '';
+                            } else {
+                                current += char;
+                            }
+                        }
+                        result.push(current);
+                        return result.map(field => field.replace(/^"|"$/g, '').trim());
+                    };
+
+                    const rows = csvText.trim().split('\n').slice(1);
                     const newWords = rows.map(row => {
-                        const columns = row.split(',');
+                        if (!row) return null;
+                        const columns = parseCsvRow(row);
                         if (columns.length >= 3 && columns[1] && columns[2]) {
                             return { 
-                                spanish: columns[1].trim().replace(/"/g, ''), 
-                                french: columns[2].trim().replace(/"/g, ''),
+                                spanish: columns[1], 
+                                french: columns[2],
                             };
                         }
                         return null;
                     }).filter(Boolean);
+
 
                     if (newWords.length > 0) {
                         localStorage.setItem('spanishAppSheetUrl', url);
@@ -199,7 +224,13 @@
                     }
                 } catch (error) {
                     console.error('Erreur de chargement du Google Sheet:', error);
-                    sheetFeedback.textContent = `❌ Erreur. Vérifiez le lien.`;
+                    let errorMessage = '❌ Erreur. Vérifiez le lien.';
+                    if (error.status === 404) {
+                        errorMessage = '❌ Lien introuvable (404). La feuille est-elle bien "Publiée sur le web" ?';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMessage = '❌ Erreur réseau. Vérifiez votre connexion internet.';
+                    }
+                    sheetFeedback.textContent = errorMessage;
                     sheetFeedback.className = 'text-xs text-center mt-2 h-4 text-red-600';
                 }
             };
@@ -230,13 +261,13 @@
             };
 
             const renderExercise = () => {
-                // Reset UI
                 answerInput.value = '';
                 answerInput.style.display = 'none';
                 qcmOptionsContainer.innerHTML = '';
                 feedback.innerHTML = '';
                 checkBtn.classList.add('hidden');
                 nextBtn.classList.add('hidden');
+                checkBtn.onclick = null;
                 
                 const question = state.currentQuestion;
                 if (!question.word) {
@@ -263,6 +294,7 @@
                 answerInput.style.display = 'block';
                 answerInput.disabled = false;
                 checkBtn.classList.remove('hidden');
+                checkBtn.onclick = () => handleAnswer(answerInput.value);
                 answerInput.focus();
                 
                 exerciseContainer.innerHTML = `
@@ -316,16 +348,31 @@
                 
                 state.currentQuestion = { type: exerciseType, word: state.words[state.currentWordIndex] };
 
+                // CORRECTION : Logique QCM rendue plus robuste
                 if (exerciseType === 'qcm') {
-                    const correctWord = state.currentQuestion.word;
-                    const distractors = [];
-                    const wordPool = state.words.filter(w => w.spanish !== correctWord.spanish);
-                    while (distractors.length < 3 && wordPool.length > 0) {
-                        const randIdx = Math.floor(Math.random() * wordPool.length);
-                        distractors.push(wordPool.splice(randIdx, 1)[0]);
+                    try {
+                        const correctWord = state.currentQuestion.word;
+                        if (state.words.length < 2) throw new Error("Pas assez de mots pour un QCM.");
+                        
+                        const distractors = [];
+                        const wordPool = state.words.filter(w => w.spanish !== correctWord.spanish && w.french);
+
+                        while (distractors.length < 3 && wordPool.length > 0) {
+                            const randIdx = Math.floor(Math.random() * wordPool.length);
+                            distractors.push(wordPool.splice(randIdx, 1)[0]);
+                        }
+                        
+                        if (!correctWord || !correctWord.french) throw new Error("Mot actuel invalide.");
+                        
+                        const options = [correctWord, ...distractors].map(w => w.french);
+                        if (options.length < 2) throw new Error("Pas assez d'options pour un QCM.");
+                        
+                        state.currentQuestion.options = options.sort(() => Math.random() - 0.5);
+
+                    } catch (error) {
+                        console.warn(`Impossible de créer un QCM, bascule vers Flashcard: ${error.message}`);
+                        state.currentQuestion.type = 'flashcard-es-fr';
                     }
-                    const options = [correctWord, ...distractors].map(w => w.french);
-                    state.currentQuestion.options = options.sort(() => Math.random() - 0.5);
                 }
                 renderExercise();
             };
@@ -351,6 +398,7 @@
             const handleAnswer = (userAnswer) => {
                 answerInput.disabled = true;
                 checkBtn.classList.add('hidden');
+                checkBtn.onclick = null;
                 document.querySelectorAll('.qcm-option-btn').forEach(btn => btn.disabled = true);
 
                 const { type, word } = state.currentQuestion;
@@ -397,7 +445,7 @@
             };
 
             const init = async () => {
-                const userProvidedUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxY8JQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
+                const userProvidedUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQbVypWe5G4ANd6EOF6Qv3zevzVB0JndrvFe4S88_ctRAp--7Ln2jxYJQtTjRN7tDMJ2dweBB57LMm/pub?gid=0&single=true&output=csv";
                 sheetUrlInput.value = userProvidedUrl;
                 
                 document.querySelector(`[data-mode="${state.exerciseMode}"]`).classList.add('active');
@@ -405,7 +453,6 @@
                 await fetchAndParseSheet(userProvidedUrl);
             };
             
-            checkBtn.addEventListener('click', () => handleAnswer(answerInput.value));
             nextBtn.addEventListener('click', startNextExercise);
             loadSheetBtn.addEventListener('click', () => { if (sheetUrlInput.value.trim()) fetchAndParseSheet(sheetUrlInput.value.trim()); });
             
@@ -420,13 +467,15 @@
 
             document.addEventListener('keyup', (event) => {
                 if (event.key !== 'Enter') return;
-                if (!checkBtn.classList.contains('hidden')) handleAnswer(answerInput.value);
-                else if (!nextBtn.classList.contains('hidden')) startNextExercise();
+                if (document.activeElement === answerInput && !checkBtn.classList.contains('hidden')) {
+                    checkBtn.click();
+                } else if (!nextBtn.classList.contains('hidden')) {
+                    nextBtn.click();
+                }
             });
             
             init();
         });
     </script>
 </body>
-
 </html>
