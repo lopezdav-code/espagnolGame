@@ -12,7 +12,10 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        .card { perspective: 1000px; }
+        .card { 
+            perspective: 1000px;
+            position: relative;
+        }
         .card-inner {
             position: relative;
             width: 100%;
@@ -34,8 +37,12 @@
             text-align: center;
             border-radius: 1rem;
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            top: 0;
+            left: 0;
         }
-        .card-back { transform: rotateY(180deg); }
+        .card-back { 
+            transform: rotateY(180deg);
+        }
         .mode-btn {
             border: 1px solid #d1d5db;
             padding: 0.5rem 1rem;
@@ -271,9 +278,81 @@
             border: 6px solid transparent;
             border-top-color: #1f2937;
         }
+        .answer-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 3rem;
+            border-radius: 1rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3);
+            z-index: 30;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+        }
+        .config-menu {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 40;
+        }
+        .config-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            border: 1px solid #e5e7eb;
+            min-width: 200px;
+            overflow: hidden;
+        }
+        .config-dropdown.hidden {
+            display: none;
+        }
+        .config-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .config-item:hover {
+            background-color: #f9fafb;
+        }
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        .speak-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 1.2rem;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+        .speak-btn:hover {
+            color: #3b82f6;
+            background-color: #f3f4f6;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
+
+    <!-- Menu Configuration -->
+    <div class="config-menu">
+        <button id="config-btn" class="bg-blue-600 text-white p-3 rounded-lg shadow-lg hover:bg-blue-700 transition-colors">
+            ⚙️
+        </button>
+        <div id="config-dropdown" class="config-dropdown hidden">
+            <div id="config-sheet" class="config-item">🔗 Gérer Google Sheet</div>
+            <div id="config-words" class="config-item">📝 Liste des mots</div>
+        </div>
+    </div>
 
     <!-- Modal pour la durée de session -->
     <div id="session-duration-modal" class="modal">
@@ -311,6 +390,70 @@
         </div>
     </div>
 
+    <!-- Modal Gestion Google Sheet -->
+    <div id="sheet-management-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">🔗 Gestion Google Sheet</h2>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-600">
+                    Publiez votre Google Sheet sur le web (format CSV) et collez le lien ici.
+                </p>
+                <input type="url" id="sheet-url-input" placeholder="https://docs.google.com/..." class="w-full border-gray-300 rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <button id="load-sheet-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md">
+                    Charger la liste
+                </button>
+                <p id="sheet-feedback" class="text-xs text-center h-auto"></p>
+                <div class="flex gap-2 mt-4">
+                    <button id="close-sheet-modal" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Liste des mots -->
+    <div id="words-management-modal" class="modal hidden">
+        <div class="modal-content max-w-4xl">
+            <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
+            <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
+            
+            <!-- Filtre par date dans le modal -->
+            <div class="filter-controls">
+                <div class="flex flex-wrap items-center justify-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="date-filter-modal" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
+                        <select id="date-filter-modal" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
+                            <option value="">Toutes les dates</option>
+                        </select>
+                        <button id="clear-date-filter-modal" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Boutons de sélection -->
+            <div class="flex gap-2 mb-4 justify-center">
+                <button id="select-all-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                    ✅ Tout cocher
+                </button>
+                <button id="deselect-all-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+                    ❌ Tout décocher
+                </button>
+            </div>
+            
+            <div class="space-y-2 max-h-96 overflow-y-auto mb-6">
+                <div id="words-list-container-modal">
+                    <!-- Les mots seront injectés ici -->
+                </div>
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="save-custom-selection-modal" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">
+                    💾 Sauvegarder ma sélection
+                </button>
+                <button id="close-words-modal" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <div id="app" class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow">
         
         <main class="lg:col-span-2 space-y-6">
@@ -325,7 +468,6 @@
             <!-- Onglets améliorés -->
             <div class="tab-container">
                 <button id="tab-exercise" class="tab-btn active">🎯 Exercices</button>
-                <button id="tab-wordlist" class="tab-btn">📝 Liste des mots</button>
             </div>
 
             <!-- Contenu onglet Exercices -->
@@ -364,7 +506,7 @@
                     <span class="mx-2">→ Mot suivant</span>
                     <span class="mx-2">↵ Valider</span>
                     <span class="mx-2">↑ Accepter réponse</span>
-                    <span class="mx-2">Espace Voir réponse</span>
+                    <span class="mx-2">Espace Voir réponse (maintenir)</span>
                 </div>
                 
                 <div id="exercise-container" class="h-64 sm:h-72">
@@ -392,37 +534,6 @@
                     </button>
                     <button id="next-btn" class="hidden bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
                         Mot Suivant ➡️
-                    </button>
-                </div>
-            </div>
-
-            <!-- Contenu onglet Liste des mots -->
-            <div id="content-wordlist" class="tab-content">
-                <h2 class="text-2xl font-bold text-blue-600 mb-4 text-center">📝 Ma liste de mots</h2>
-                <p class="text-gray-600 text-center mb-6">Coche les mots que tu veux réviser spécialement ⭐</p>
-                
-                <!-- Filtre par date dans l'onglet liste -->
-                <div class="filter-controls">
-                    <div class="flex flex-wrap items-center justify-center gap-4">
-                        <div class="flex items-center gap-2">
-                            <label for="date-filter-wordlist" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
-                            <select id="date-filter-wordlist" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
-                                <option value="">Toutes les dates</option>
-                            </select>
-                            <button id="clear-date-filter-wordlist" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="space-y-2 max-h-96 overflow-y-auto mb-6">
-                    <div id="words-list-container">
-                        <!-- Les mots seront injectés ici -->
-                    </div>
-                </div>
-                
-                <div class="text-center">
-                    <button id="save-custom-selection" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">
-                        💾 Sauvegarder ma sélection
                     </button>
                 </div>
             </div>
@@ -502,26 +613,12 @@
                     </div>
                 </div>
             </div>
-
-            <div>
-                <h2 class="text-2xl font-semibold mb-4 text-blue-600">Lien Google Sheet</h2>
-                 <div class="bg-white p-4 rounded-xl shadow">
-                    <p class="text-sm text-gray-600 mb-2">
-                        Publiez votre Google Sheet sur le web (format CSV) et collez le lien ici.
-                    </p>
-                    <input type="url" id="sheet-url-input" placeholder="https://docs.google.com/..." class="w-full border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                    <button id="load-sheet-btn" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">
-                        Charger la liste
-                    </button>
-                    <p id="sheet-feedback" class="text-xs text-center mt-2 h-auto"></p>
-                 </div>
-            </div>
         </aside>
     </div>
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.7 - 15/01/2025 16:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.8 - 15/01/2025 17:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -561,6 +658,7 @@
                 twoMinuteWarningShown: false,
                 isFirstSession: true, // Pour savoir si c'est la première session
                 currentTab: 'exercise', // 'exercise' ou 'wordlist'
+                spacePressed: false, // Pour gérer la touche espace
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -589,25 +687,23 @@
             const wordsTableContainer = document.getElementById('words-table-container');
             const toggleWordsTableBtn = document.getElementById('toggle-words-table');
             const wordsTableBody = document.getElementById('words-table-body');
-            const wordsListContainer = document.getElementById('words-list-container');
-            const saveCustomSelectionBtn = document.getElementById('save-custom-selection');
             
             // Éléments pour les dates
             const dateFilterSelect = document.getElementById('date-filter');
             const clearDateFilterBtn = document.getElementById('clear-date-filter');
             const sortByDateBtn = document.getElementById('sort-by-date');
-            const dateFilterWordlistSelect = document.getElementById('date-filter-wordlist');
-            const clearDateFilterWordlistBtn = document.getElementById('clear-date-filter-wordlist');
+            const dateFilterModalSelect = document.getElementById('date-filter-modal');
+            const clearDateFilterModalBtn = document.getElementById('clear-date-filter-modal');
 
             // Éléments onglets
             const tabExercise = document.getElementById('tab-exercise');
-            const tabWordlist = document.getElementById('tab-wordlist');
             const contentExercise = document.getElementById('content-exercise');
-            const contentWordlist = document.getElementById('content-wordlist');
 
             // Éléments modals
             const sessionDurationModal = document.getElementById('session-duration-modal');
             const sheetErrorModal = document.getElementById('sheet-error-modal');
+            const sheetManagementModal = document.getElementById('sheet-management-modal');
+            const wordsManagementModal = document.getElementById('words-management-modal');
             const durationBtns = document.querySelectorAll('.duration-btn');
             const customDurationBtn = document.getElementById('custom-duration-btn');
             const customDurationInput = document.getElementById('custom-duration');
@@ -615,6 +711,20 @@
             const useExampleBtn = document.getElementById('use-example-btn');
             const validateNewSheetBtn = document.getElementById('validate-new-sheet-btn');
             const exampleUrlDisplay = document.getElementById('example-url-display');
+
+            // Éléments du menu configuration
+            const configBtn = document.getElementById('config-btn');
+            const configDropdown = document.getElementById('config-dropdown');
+            const configSheet = document.getElementById('config-sheet');
+            const configWords = document.getElementById('config-words');
+            const closeSheetModal = document.getElementById('close-sheet-modal');
+            const closeWordsModal = document.getElementById('close-words-modal');
+
+            // Éléments pour la liste des mots
+            const wordsListContainerModal = document.getElementById('words-list-container-modal');
+            const saveCustomSelectionModal = document.getElementById('save-custom-selection-modal');
+            const selectAllBtn = document.getElementById('select-all-btn');
+            const deselectAllBtn = document.getElementById('deselect-all-btn');
 
             // Éléments des statistiques de session
             const sessionTotal = document.getElementById('session-total');
@@ -625,6 +735,21 @@
 
             let timerInterval = null;
             let currentTranslationPopup = null;
+            let currentAnswerPopup = null;
+
+            // Synthèse vocale
+            const speak = (text, lang = 'es-ES') => {
+                if ('speechSynthesis' in window) {
+                    // Arrêter toute synthèse en cours
+                    speechSynthesis.cancel();
+                    
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = lang;
+                    utterance.rate = 0.8;
+                    utterance.pitch = 1;
+                    speechSynthesis.speak(utterance);
+                }
+            };
 
             // Fonctions utilitaires pour les dates
             const parseDate = (dateString) => {
@@ -669,7 +794,7 @@
                 };
 
                 updateSelect(dateFilterSelect);
-                updateSelect(dateFilterWordlistSelect);
+                updateSelect(dateFilterModalSelect);
             };
 
             // Filtrage des mots par date
@@ -710,6 +835,34 @@
                 }
             };
 
+            // Gestion de la popup de réponse (espace)
+            const showAnswerPopup = () => {
+                if (currentAnswerPopup || !state.currentQuestion.word) return;
+                
+                const correctAnswerText = state.currentQuestion.type === 'flashcard-fr-es' 
+                    ? state.currentQuestion.word.spanish 
+                    : state.currentQuestion.word.french;
+                
+                const popup = document.createElement('div');
+                popup.className = 'answer-popup';
+                popup.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span>${correctAnswerText}</span>
+                        <button class="speak-btn" onclick="speak('${correctAnswerText}', '${state.currentQuestion.type === 'flashcard-fr-es' ? 'es-ES' : 'fr-FR'}')">🔊</button>
+                    </div>
+                `;
+                
+                document.body.appendChild(popup);
+                currentAnswerPopup = popup;
+            };
+
+            const hideAnswerPopup = () => {
+                if (currentAnswerPopup) {
+                    currentAnswerPopup.remove();
+                    currentAnswerPopup = null;
+                }
+            };
+
             // Gestion des clics sur les mots pour afficher la traduction
             const handleWordClick = (event, word) => {
                 event.stopPropagation();
@@ -719,12 +872,42 @@
             // Cacher la popup si on clique ailleurs
             document.addEventListener('click', hideTranslationPopup);
 
+            // Gestion du menu configuration
+            configBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                configDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', () => {
+                configDropdown.classList.add('hidden');
+            });
+
+            configSheet.addEventListener('click', () => {
+                configDropdown.classList.add('hidden');
+                sheetManagementModal.classList.remove('hidden');
+            });
+
+            configWords.addEventListener('click', () => {
+                configDropdown.classList.add('hidden');
+                renderWordsListModal();
+                wordsManagementModal.classList.remove('hidden');
+            });
+
+            closeSheetModal.addEventListener('click', () => {
+                sheetManagementModal.classList.add('hidden');
+            });
+
+            closeWordsModal.addEventListener('click', () => {
+                wordsManagementModal.classList.add('hidden');
+            });
+
             // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER
             const handleKeyboard = (event) => {
-                // Ignorer si on est dans un modal ou dans l'onglet liste des mots
+                // Ignorer si on est dans un modal
                 if (!sessionDurationModal.classList.contains('hidden') || 
-                    !sheetErrorModal.classList.contains('hidden') || 
-                    state.currentTab !== 'exercise') {
+                    !sheetErrorModal.classList.contains('hidden') ||
+                    !sheetManagementModal.classList.contains('hidden') ||
+                    !wordsManagementModal.classList.contains('hidden')) {
                     return;
                 }
 
@@ -750,26 +933,19 @@
                         }
                         break;
                     case ' ': // Espace pour afficher la réponse
-                        event.preventDefault();
-                        showAnswer();
+                        if (!state.spacePressed) {
+                            event.preventDefault();
+                            state.spacePressed = true;
+                            showAnswerPopup();
+                        }
                         break;
                 }
             };
 
-            // Fonction pour afficher la réponse (raccourci espace)
-            const showAnswer = () => {
-                if (state.currentQuestion.type !== 'qcm') {
-                    // Pour les flashcards, retourner la carte
-                    exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
-                }
-                // Pour les QCM, colorer la bonne réponse
-                if (state.currentQuestion.type === 'qcm' && state.currentQuestion.word) {
-                    const correctAnswerText = state.currentQuestion.word.french;
-                    document.querySelectorAll('.qcm-option-btn').forEach(btn => {
-                        if (btn.textContent === correctAnswerText) {
-                            btn.className += ' bg-blue-200 border-blue-500';
-                        }
-                    });
+            const handleKeyUp = (event) => {
+                if (event.key === ' ' && state.spacePressed) {
+                    state.spacePressed = false;
+                    hideAnswerPopup();
                 }
             };
 
@@ -825,62 +1001,40 @@
                 updatePrevNextButtons();
             };
 
-            // Gestion des onglets
-            const switchTab = (tabName) => {
-                state.currentTab = tabName;
-                
-                // Mise à jour des onglets
-                if (tabName === 'exercise') {
-                    tabExercise.classList.add('active');
-                    tabWordlist.classList.remove('active');
-                    contentExercise.classList.add('active');
-                    contentWordlist.classList.remove('active');
-                } else {
-                    tabExercise.classList.remove('active');
-                    tabWordlist.classList.add('active');
-                    contentExercise.classList.remove('active');
-                    contentWordlist.classList.add('active');
-                    renderWordsList();
-                }
-            };
-
-            tabExercise.addEventListener('click', () => switchTab('exercise'));
-            tabWordlist.addEventListener('click', () => switchTab('wordlist'));
-
             // Gestion des filtres de date pour les exercices
             dateFilterSelect.addEventListener('change', (e) => {
                 state.dateFilter = e.target.value || null;
                 // Synchroniser avec l'autre select
-                dateFilterWordlistSelect.value = e.target.value;
-                renderWordsList();
+                dateFilterModalSelect.value = e.target.value;
+                renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
             });
 
             clearDateFilterBtn.addEventListener('click', () => {
                 dateFilterSelect.value = '';
-                dateFilterWordlistSelect.value = '';
+                dateFilterModalSelect.value = '';
                 state.dateFilter = null;
-                renderWordsList();
+                renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
             });
 
-            // Gestion des filtres de date pour la liste des mots
-            dateFilterWordlistSelect.addEventListener('change', (e) => {
+            // Gestion des filtres de date pour le modal
+            dateFilterModalSelect.addEventListener('change', (e) => {
                 state.dateFilter = e.target.value || null;
                 // Synchroniser avec l'autre select
                 dateFilterSelect.value = e.target.value;
-                renderWordsList();
+                renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
             });
 
-            clearDateFilterWordlistBtn.addEventListener('click', () => {
+            clearDateFilterModalBtn.addEventListener('click', () => {
                 dateFilterSelect.value = '';
-                dateFilterWordlistSelect.value = '';
+                dateFilterModalSelect.value = '';
                 state.dateFilter = null;
-                renderWordsList();
+                renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
             });
@@ -888,17 +1042,17 @@
             sortByDateBtn.addEventListener('click', () => {
                 state.sortByDateAsc = !state.sortByDateAsc;
                 sortByDateBtn.textContent = state.sortByDateAsc ? '📅 Trier par date ↑' : '📅 Trier par date ↓';
-                renderWordsList();
+                renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
             });
 
-            // Rendu de la liste des mots avec cases à cocher
-            const renderWordsList = () => {
-                wordsListContainer.innerHTML = '';
+            // Rendu de la liste des mots dans le modal
+            const renderWordsListModal = () => {
+                wordsListContainerModal.innerHTML = '';
                 
                 if (state.words.length === 0) {
-                    wordsListContainer.innerHTML = '<p class="text-gray-500 text-center">Aucun mot chargé</p>';
+                    wordsListContainerModal.innerHTML = '<p class="text-gray-500 text-center">Aucun mot chargé</p>';
                     return;
                 }
 
@@ -916,14 +1070,16 @@
                     wordItem.innerHTML = `
                         <div class="flex items-center gap-3">
                             <input type="checkbox" 
-                                   class="word-checkbox" 
+                                   class="word-checkbox-modal" 
                                    data-word="${word.spanish}"
                                    ${isSelected ? 'checked' : ''}>
                             <div class="flex flex-col">
-                                <div>
+                                <div class="flex items-center gap-2">
                                     <span class="font-medium text-blue-700">${word.spanish}</span>
+                                    <button class="speak-btn" onclick="speak('${word.spanish}', 'es-ES')">🔊</button>
                                     <span class="text-gray-500 mx-2">→</span>
                                     <span class="text-gray-700">${word.french}</span>
+                                    <button class="speak-btn" onclick="speak('${word.french}', 'fr-FR')">🔊</button>
                                 </div>
                                 <div class="date-badge">${word.date || 'Sans date'}</div>
                             </div>
@@ -934,32 +1090,41 @@
                         </div>
                     `;
                     
-                    wordsListContainer.appendChild(wordItem);
+                    wordsListContainerModal.appendChild(wordItem);
                 });
             };
 
-            // Sauvegarde de la sélection personnalisée
-            const saveCustomSelection = () => {
-                const checkboxes = document.querySelectorAll('.word-checkbox:checked');
+            // Boutons de sélection/désélection
+            selectAllBtn.addEventListener('click', () => {
+                document.querySelectorAll('.word-checkbox-modal').forEach(cb => cb.checked = true);
+            });
+
+            deselectAllBtn.addEventListener('click', () => {
+                document.querySelectorAll('.word-checkbox-modal').forEach(cb => cb.checked = false);
+            });
+
+            // Sauvegarde de la sélection personnalisée depuis le modal
+            const saveCustomSelectionFromModal = () => {
+                const checkboxes = document.querySelectorAll('.word-checkbox-modal:checked');
                 state.customSelection = Array.from(checkboxes).map(cb => cb.dataset.word);
                 
                 localStorage.setItem('spanishAppCustomSelection', JSON.stringify(state.customSelection));
                 
                 // Feedback visuel
-                saveCustomSelectionBtn.textContent = '✅ Sauvegardé !';
-                saveCustomSelectionBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-                saveCustomSelectionBtn.classList.add('bg-green-500');
+                saveCustomSelectionModal.textContent = '✅ Sauvegardé !';
+                saveCustomSelectionModal.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                saveCustomSelectionModal.classList.add('bg-green-500');
                 
                 setTimeout(() => {
-                    saveCustomSelectionBtn.textContent = '💾 Sauvegarder ma sélection';
-                    saveCustomSelectionBtn.classList.remove('bg-green-500');
-                    saveCustomSelectionBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                    saveCustomSelectionModal.textContent = '💾 Sauvegarder ma sélection';
+                    saveCustomSelectionModal.classList.remove('bg-green-500');
+                    saveCustomSelectionModal.classList.add('bg-blue-500', 'hover:bg-blue-600');
                 }, 2000);
                 
-                renderWordsList(); // Re-render pour afficher les étoiles
+                renderWordsListModal(); // Re-render pour afficher les étoiles
             };
 
-            saveCustomSelectionBtn.addEventListener('click', saveCustomSelection);
+            saveCustomSelectionModal.addEventListener('click', saveCustomSelectionFromModal);
 
             // Chargement de la sélection personnalisée
             const loadCustomSelection = () => {
@@ -1395,6 +1560,9 @@
                 const [questionText, answerText] = question.type === 'flashcard-es-fr'
                     ? [question.word.spanish, question.word.french]
                     : [question.word.french, question.word.spanish];
+                
+                const questionLang = question.type === 'flashcard-es-fr' ? 'es-ES' : 'fr-FR';
+                const answerLang = question.type === 'flashcard-es-fr' ? 'fr-FR' : 'es-ES';
 
                 answerInput.style.display = 'block';
                 answerInput.disabled = false;
@@ -1407,8 +1575,18 @@
                 exerciseContainer.innerHTML = `
                     <div class="card w-full h-full">
                         <div class="card-inner">
-                            <div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold tooltip" data-tooltip="${answerText}">${questionText}</div>
-                            <div class="card-face card-back bg-purple-200 text-purple-800 text-xl md:text-2xl font-semibold">${answerText}</div>
+                            <div class="card-face bg-blue-200 text-blue-800 text-2xl md:text-3xl font-bold tooltip" data-tooltip="${answerText}">
+                                <div class="flex items-center gap-3">
+                                    <span>${questionText}</span>
+                                    <button class="speak-btn text-4xl" onclick="speak('${questionText}', '${questionLang}')">🔊</button>
+                                </div>
+                            </div>
+                            <div class="card-face card-back bg-purple-200 text-purple-800 text-xl md:text-2xl font-semibold">
+                                <div class="flex items-center gap-3">
+                                    <span>${answerText}</span>
+                                    <button class="speak-btn text-3xl" onclick="speak('${answerText}', '${answerLang}')">🔊</button>
+                                </div>
+                            </div>
                         </div>
                     </div>`;
             };
@@ -1423,7 +1601,13 @@
 
                 // Afficher la question dans le conteneur d'exercice avec tooltip
                 const tooltipText = question.word.french;
-                exerciseContainer.innerHTML = `<div class="qcm-question tooltip" data-tooltip="${tooltipText}">${question.word.spanish}</div>`;
+                exerciseContainer.innerHTML = `
+                    <div class="qcm-question tooltip" data-tooltip="${tooltipText}">
+                        <div class="flex items-center justify-center gap-3">
+                            <span>${question.word.spanish}</span>
+                            <button class="speak-btn text-2xl" onclick="speak('${question.word.spanish}', 'es-ES')">🔊</button>
+                        </div>
+                    </div>`;
                 
                 // Afficher le bouton "Je ne sais pas" pour les QCM aussi
                 dontKnowBtn.classList.remove('hidden');
@@ -1433,7 +1617,11 @@
                 qcmOptionsContainer.style.display = 'flex';
                 question.options.forEach(option => {
                     const button = document.createElement('button');
-                    button.textContent = option;
+                    button.innerHTML = `
+                        <div class="flex items-center justify-center gap-2">
+                            <span>${option}</span>
+                            <button class="speak-btn" onclick="speak('${option}', 'fr-FR'); event.stopPropagation();">🔊</button>
+                        </div>`;
                     button.className = "w-full p-3 border bg-white rounded-lg shadow-sm hover:bg-gray-100 qcm-option-btn";
                     button.addEventListener('click', () => handleAnswer(option));
                     qcmOptionsContainer.appendChild(button);
@@ -1594,12 +1782,17 @@
                 
                 // Afficher la réponse avec question
                 const correctAnswerText = state.currentQuestion.type === 'flashcard-fr-es' ? word.spanish : word.french;
+                const lang = state.currentQuestion.type === 'flashcard-fr-es' ? 'es-ES' : 'fr-FR';
                 feedback.innerHTML = `
                     <div class="feedback-box border-orange-500 bg-orange-50">
                         <div class="text-sm text-gray-700 mb-2">
                             <strong>Question :</strong> ${getQuestionText()}
                         </div>
-                        <div class="text-orange-600 font-bold">🤷 La réponse était : <strong class="text-blue-600">${correctAnswerText}</strong></div>
+                        <div class="text-orange-600 font-bold">
+                            🤷 La réponse était : 
+                            <strong class="text-blue-600">${correctAnswerText}</strong>
+                            <button class="speak-btn ml-2" onclick="speak('${correctAnswerText}', '${lang}')">🔊</button>
+                        </div>
                     </div>
                 `;
                 
@@ -1617,7 +1810,7 @@
                 // Colorer les options QCM
                 if (state.currentQuestion.type === 'qcm') {
                     document.querySelectorAll('.qcm-option-btn').forEach(btn => {
-                        if (btn.textContent === correctAnswerText) {
+                        if (btn.textContent.includes(correctAnswerText)) {
                             btn.className += ' bg-blue-200 border-blue-500';
                         }
                     });
@@ -1687,6 +1880,8 @@
                     if (!state.sessionMistakes.find(w => w.spanish === word.spanish)) {
                         state.sessionMistakes.push({ ...word });
                     }
+                    
+                    const lang = type === 'flashcard-fr-es' ? 'es-ES' : 'fr-FR';
                     feedback.innerHTML = `
                         <div class="feedback-box border-red-500 bg-red-50">
                             <div class="text-sm text-gray-700 mb-2">
@@ -1695,7 +1890,11 @@
                             <div class="text-sm text-gray-700 mb-2">
                                 <strong>Votre réponse :</strong> ${userAnswer}
                             </div>
-                            <div class="text-red-600 font-bold">❌ Incorrect. La réponse était : <strong class="text-blue-600">${correctAnswerText}</strong></div>
+                            <div class="text-red-600 font-bold">
+                                ❌ Incorrect. La réponse était : 
+                                <strong class="text-blue-600">${correctAnswerText}</strong>
+                                <button class="speak-btn ml-2" onclick="speak('${correctAnswerText}', '${lang}')">🔊</button>
+                            </div>
                         </div>
                     `;
                     
@@ -1712,8 +1911,8 @@
                 
                 if (type === 'qcm') {
                     document.querySelectorAll('.qcm-option-btn').forEach(btn => {
-                        if (btn.textContent === correctAnswerText) btn.className += ' bg-green-200 border-green-500';
-                        else if (btn.textContent === userAnswer && !isCorrect) btn.className += ' bg-red-200 border-red-500';
+                        if (btn.textContent.includes(correctAnswerText)) btn.className += ' bg-green-200 border-green-500';
+                        else if (btn.textContent.includes(userAnswer) && !isCorrect) btn.className += ' bg-red-200 border-red-500';
                     });
                 }
                 
@@ -1828,6 +2027,10 @@
 
             // ⌨️ AJOUT DU GESTIONNAIRE DE CLAVIER
             document.addEventListener('keydown', handleKeyboard);
+            document.addEventListener('keyup', handleKeyUp);
+
+            // Exposer la fonction speak globalement
+            window.speak = speak;
             
             init();
         });
