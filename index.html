@@ -93,6 +93,18 @@
             border-top-color: #1f2937;
             z-index: 10;
         }
+        .feedback-box {
+            background-color: #f3f4f6;
+            border: 2px solid #d1d5db;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .timer {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8">
@@ -102,6 +114,9 @@
         <main class="lg:col-span-2 space-y-6">
             <header class="text-center">
                 <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Apprentissage d'Espagnol</h1>
+                <div class="mt-2 flex justify-center items-center gap-4">
+                    <div class="timer text-blue-600">⏱️ <span id="session-timer">00:00</span></div>
+                </div>
             </header>
             
             <div id="exercise-mode-selection" class="flex justify-center gap-2 sm:gap-4 flex-wrap">
@@ -118,7 +133,7 @@
             <div id="answer-section" class="mt-4 space-y-3 min-h-[120px]">
                 <input type="text" id="answer-input" placeholder="Écrivez la traduction ici..." autocomplete="off" class="w-full max-w-md mx-auto block p-3 border border-gray-300 rounded-lg text-center text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                 <div id="qcm-options" class="flex flex-col items-center gap-3 w-full max-w-md mx-auto"></div>
-                <div id="feedback" class="text-center h-6 font-semibold pt-2"></div>
+                <div id="feedback" class="text-center min-h-[60px] font-semibold pt-2"></div>
             </div>
 
             <div id="controls" class="flex justify-center gap-4 flex-wrap">
@@ -127,6 +142,9 @@
                 </button>
                 <button id="dont-know-btn" class="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-orange-600 transition-transform transform hover:scale-105">
                     Je ne sais pas
+                </button>
+                <button id="accept-answer-btn" class="hidden bg-green-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-600 transition-transform transform hover:scale-105">
+                    Accepter ma réponse
                 </button>
                 <button id="next-btn" class="hidden bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-800 transition-transform transform hover:scale-105">
                     Mot Suivant ➡️
@@ -138,6 +156,31 @@
             <div>
                 <h2 class="text-2xl font-semibold mb-4 text-blue-600">Tableau de Bord</h2>
                 <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl shadow">
+                        <h3 class="font-bold mb-2 text-purple-500">📊 Session en cours</h3>
+                        <div class="text-sm space-y-1">
+                            <div class="flex justify-between">
+                                <span>Mots révisés :</span>
+                                <span id="session-total" class="font-mono font-bold">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>✅ Correctes :</span>
+                                <span id="session-correct" class="font-mono font-bold text-green-600">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>❌ Incorrectes :</span>
+                                <span id="session-incorrect" class="font-mono font-bold text-red-600">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>🤷 Je ne sais pas :</span>
+                                <span id="session-unknown" class="font-mono font-bold text-orange-600">0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>📈 Acceptées :</span>
+                                <span id="session-accepted" class="font-mono font-bold text-blue-600">0</span>
+                            </div>
+                        </div>
+                    </div>
                     <div class="bg-white p-4 rounded-xl shadow">
                         <h3 class="font-bold mb-2 text-red-500">❌ Mots à réviser (session)</h3>
                         <ul id="words-to-review" class="space-y-2 text-sm max-h-48 overflow-y-auto pr-2"></ul>
@@ -179,6 +222,15 @@
                 exerciseMode: 'mix', // 'mix', 'flashcard-es-fr', 'flashcard-fr-es', 'qcm'
                 currentQuestion: {}, // { type, word, options, answer }
                 sessionMistakes: [], // Mots ratés pendant cette session
+                sessionStats: {
+                    total: 0,
+                    correct: 0,
+                    incorrect: 0,
+                    unknown: 0,
+                    accepted: 0,
+                    startTime: null
+                },
+                lastUserAnswer: '', // Pour pouvoir l'afficher dans le feedback
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -193,8 +245,55 @@
             const feedback = document.getElementById('feedback');
             const checkBtn = document.getElementById('check-btn');
             const dontKnowBtn = document.getElementById('dont-know-btn');
+            const acceptAnswerBtn = document.getElementById('accept-answer-btn');
             const nextBtn = document.getElementById('next-btn');
             const modeButtons = document.querySelectorAll('.mode-btn');
+            const sessionTimer = document.getElementById('session-timer');
+
+            // Éléments des statistiques de session
+            const sessionTotal = document.getElementById('session-total');
+            const sessionCorrect = document.getElementById('session-correct');
+            const sessionIncorrect = document.getElementById('session-incorrect');
+            const sessionUnknown = document.getElementById('session-unknown');
+            const sessionAccepted = document.getElementById('session-accepted');
+
+            let timerInterval = null;
+
+            const startTimer = () => {
+                if (!state.sessionStats.startTime) {
+                    state.sessionStats.startTime = Date.now();
+                }
+                
+                if (timerInterval) clearInterval(timerInterval);
+                
+                timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - state.sessionStats.startTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    sessionTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+            };
+
+            const updateSessionStats = () => {
+                sessionTotal.textContent = state.sessionStats.total;
+                sessionCorrect.textContent = state.sessionStats.correct;
+                sessionIncorrect.textContent = state.sessionStats.incorrect;
+                sessionUnknown.textContent = state.sessionStats.unknown;
+                sessionAccepted.textContent = state.sessionStats.accepted;
+            };
+
+            const resetSessionStats = () => {
+                state.sessionStats = {
+                    total: 0,
+                    correct: 0,
+                    incorrect: 0,
+                    unknown: 0,
+                    accepted: 0,
+                    startTime: Date.now()
+                };
+                updateSessionStats();
+                startTimer();
+            };
 
             const saveState = () => {
                 const sheetUrl = localStorage.getItem('spanishAppSheetUrl');
@@ -359,9 +458,11 @@
                 feedback.innerHTML = '';
                 checkBtn.classList.add('hidden');
                 dontKnowBtn.classList.add('hidden');
+                acceptAnswerBtn.classList.add('hidden');
                 nextBtn.classList.add('hidden');
                 checkBtn.onclick = null;
                 dontKnowBtn.onclick = null;
+                acceptAnswerBtn.onclick = null;
                 
                 const question = state.currentQuestion;
                 if (!question.word) {
@@ -505,21 +606,69 @@
                 return finalAnswers.map(ans => normalizeUserAnswer(ans));
             };
 
+            const getQuestionText = () => {
+                const { type, word } = state.currentQuestion;
+                if (type === 'qcm' || type === 'flashcard-es-fr') {
+                    return word.spanish;
+                } else if (type === 'flashcard-fr-es') {
+                    return word.french;
+                }
+                return '';
+            };
+
+            const handleAcceptAnswer = () => {
+                const { word } = state.currentQuestion;
+                
+                // Compter comme correct
+                word.count++;
+                state.sessionStats.accepted++;
+                state.sessionStats.total++;
+                
+                // Retirer des erreurs de session si présent
+                state.sessionMistakes = state.sessionMistakes.filter(w => w.spanish !== word.spanish);
+                
+                updateSessionStats();
+                saveState();
+                renderDashboard();
+                
+                // Masquer les boutons et préparer le suivant
+                acceptAnswerBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+                nextBtn.focus();
+                
+                feedback.innerHTML = `
+                    <div class="feedback-box border-green-500 bg-green-50">
+                        <div class="text-sm text-gray-700 mb-2">
+                            <strong>Question :</strong> ${getQuestionText()}
+                        </div>
+                        <div class="text-green-600 font-bold">✅ Réponse acceptée ! 👍</div>
+                    </div>
+                `;
+            };
+
             const handleDontKnow = () => {
                 const { word } = state.currentQuestion;
                 
                 // Marquer comme incorrect
                 word.count = 0;
+                state.sessionStats.unknown++;
+                state.sessionStats.total++;
                 
                 // Ajouter aux mots à réviser si pas déjà présent
                 if (!state.sessionMistakes.find(w => w.spanish === word.spanish)) {
                     state.sessionMistakes.push({ ...word });
                 }
                 
-                // Afficher la réponse
+                // Afficher la réponse avec question
                 const correctAnswerText = state.currentQuestion.type === 'flashcard-fr-es' ? word.spanish : word.french;
-                feedback.innerHTML = `La réponse était : <strong class="text-blue-600">${correctAnswerText}</strong>`;
-                feedback.className = 'text-center h-6 font-semibold pt-2 text-orange-600';
+                feedback.innerHTML = `
+                    <div class="feedback-box border-orange-500 bg-orange-50">
+                        <div class="text-sm text-gray-700 mb-2">
+                            <strong>Question :</strong> ${getQuestionText()}
+                        </div>
+                        <div class="text-orange-600 font-bold">🤷 La réponse était : <strong class="text-blue-600">${correctAnswerText}</strong></div>
+                    </div>
+                `;
                 
                 // Désactiver les contrôles
                 answerInput.disabled = true;
@@ -541,6 +690,7 @@
                     });
                 }
                 
+                updateSessionStats();
                 nextBtn.classList.remove('hidden');
                 nextBtn.focus();
                 saveState();
@@ -548,6 +698,7 @@
             };
 
             const handleAnswer = (userAnswer) => {
+                state.lastUserAnswer = userAnswer;
                 answerInput.disabled = true;
                 checkBtn.classList.add('hidden');
                 dontKnowBtn.classList.add('hidden');
@@ -568,18 +719,47 @@
                     isCorrect = normalizeUserAnswer(userAnswer) === normalizeUserAnswer(correctAnswerText);
                 }
 
+                state.sessionStats.total++;
+
                 if (isCorrect) {
                     word.count++;
-                    feedback.textContent = 'Correct ! 👍';
-                    feedback.className = 'text-center h-6 font-semibold pt-2 text-green-600';
+                    state.sessionStats.correct++;
+                    feedback.innerHTML = `
+                        <div class="feedback-box border-green-500 bg-green-50">
+                            <div class="text-sm text-gray-700 mb-2">
+                                <strong>Question :</strong> ${getQuestionText()}
+                            </div>
+                            <div class="text-sm text-gray-700 mb-2">
+                                <strong>Votre réponse :</strong> ${userAnswer}
+                            </div>
+                            <div class="text-green-600 font-bold">✅ Correct ! 👍</div>
+                        </div>
+                    `;
+                    nextBtn.classList.remove('hidden');
+                    nextBtn.focus();
                 } else {
                     word.count = 0;
+                    state.sessionStats.incorrect++;
                     // Ajouter aux mots à réviser si pas déjà présent
                     if (!state.sessionMistakes.find(w => w.spanish === word.spanish)) {
                         state.sessionMistakes.push({ ...word });
                     }
-                    feedback.innerHTML = `Incorrect. C'était : <strong class="text-blue-600">${correctAnswerText}</strong>`;
-                    feedback.className = 'text-center h-6 font-semibold pt-2 text-red-600';
+                    feedback.innerHTML = `
+                        <div class="feedback-box border-red-500 bg-red-50">
+                            <div class="text-sm text-gray-700 mb-2">
+                                <strong>Question :</strong> ${getQuestionText()}
+                            </div>
+                            <div class="text-sm text-gray-700 mb-2">
+                                <strong>Votre réponse :</strong> ${userAnswer}
+                            </div>
+                            <div class="text-red-600 font-bold">❌ Incorrect. La réponse était : <strong class="text-blue-600">${correctAnswerText}</strong></div>
+                        </div>
+                    `;
+                    
+                    // Montrer le bouton "Accepter ma réponse"
+                    acceptAnswerBtn.classList.remove('hidden');
+                    acceptAnswerBtn.onclick = handleAcceptAnswer;
+                    nextBtn.classList.remove('hidden');
                 }
                 
                 if (type === 'qcm') {
@@ -591,14 +771,14 @@
                     exerciseContainer.querySelector('.card')?.classList.add('is-flipped');
                 }
                 
-                nextBtn.classList.remove('hidden');
-                nextBtn.focus();
+                updateSessionStats();
                 saveState();
                 renderDashboard();
             };
             
             const restartApp = () => {
                 state.sessionMistakes = []; // Reset des erreurs de session
+                resetSessionStats(); // Reset des statistiques
                 renderDashboard();
                 startNextExercise();
             };
@@ -609,6 +789,7 @@
                 
                 document.querySelector(`[data-mode="${state.exerciseMode}"]`).classList.add('active');
                 
+                resetSessionStats();
                 await fetchAndParseSheet(userProvidedUrl);
             };
             
