@@ -192,6 +192,14 @@
             width: 1.2rem;
             height: 1.2rem;
         }
+        .keyboard-help {
+            background-color: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            color: #475569;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
@@ -265,6 +273,15 @@
                     <button id="correct-filter-btn" class="filter-btn">✅ Réviser uniquement les mots corrects</button>
                     <button id="custom-filter-btn" class="filter-btn">⭐ Réviser uniquement mes mots choisis</button>
                 </div>
+
+                <!-- Aide clavier -->
+                <div class="keyboard-help text-center">
+                    <strong>⌨️ Raccourcis clavier :</strong>
+                    <span class="mx-2">← Mot précédent</span>
+                    <span class="mx-2">→ Mot suivant</span>
+                    <span class="mx-2">↵ Valider</span>
+                    <span class="mx-2">↑ Accepter réponse</span>
+                </div>
                 
                 <div id="exercise-container" class="h-64 sm:h-72">
                     <!-- L'exercice (carte ou QCM) sera injecté ici -->
@@ -277,6 +294,9 @@
                 </div>
 
                 <div id="controls" class="flex justify-center gap-4 flex-wrap">
+                    <button id="prev-btn" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-transform transform hover:scale-105">
+                        ⬅️ Mot Précédent
+                    </button>
                      <button id="check-btn" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-600 transition-transform transform hover:scale-105">
                         Vérifier
                     </button>
@@ -405,7 +425,7 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.4 - 15/01/2025 15:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 2.5 - 15/01/2025 15:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -417,6 +437,8 @@
             const state = {
                 words: [],
                 currentWordIndex: null,
+                wordHistory: [], // Historique des mots vus pour navigation
+                historyPosition: -1, // Position actuelle dans l'historique
                 learnedThreshold: 3,
                 exerciseMode: 'mix', // 'mix', 'flashcard-es-fr', 'flashcard-fr-es', 'qcm'
                 currentQuestion: {}, // { type, word, options, answer }
@@ -457,6 +479,7 @@
             const dontKnowBtn = document.getElementById('dont-know-btn');
             const acceptAnswerBtn = document.getElementById('accept-answer-btn');
             const nextBtn = document.getElementById('next-btn');
+            const prevBtn = document.getElementById('prev-btn');
             const modeButtons = document.querySelectorAll('.mode-btn');
             const sessionTimer = document.getElementById('session-timer');
             const sessionTimerContainer = document.getElementById('session-timer-container');
@@ -495,6 +518,91 @@
             const sessionAccepted = document.getElementById('session-accepted');
 
             let timerInterval = null;
+
+            // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER
+            const handleKeyboard = (event) => {
+                // Ignorer si on est dans un modal ou dans l'onglet liste des mots
+                if (!sessionDurationModal.classList.contains('hidden') || 
+                    !sheetErrorModal.classList.contains('hidden') || 
+                    state.currentTab !== 'exercise') {
+                    return;
+                }
+
+                switch(event.key) {
+                    case 'ArrowLeft':
+                        event.preventDefault();
+                        goToPreviousWord();
+                        break;
+                    case 'ArrowRight':
+                        event.preventDefault();
+                        goToNextWord();
+                        break;
+                    case 'Enter':
+                        event.preventDefault();
+                        if (!checkBtn.classList.contains('hidden')) {
+                            handleAnswer(answerInput.value);
+                        }
+                        break;
+                    case 'ArrowUp':
+                        event.preventDefault();
+                        if (!acceptAnswerBtn.classList.contains('hidden')) {
+                            handleAcceptAnswer();
+                        }
+                        break;
+                }
+            };
+
+            // Fonction pour aller au mot précédent
+            const goToPreviousWord = () => {
+                if (state.historyPosition > 0) {
+                    state.historyPosition--;
+                    const previousWordData = state.wordHistory[state.historyPosition];
+                    state.currentWordIndex = previousWordData.wordIndex;
+                    state.currentQuestion = { ...previousWordData.question };
+                    renderExercise();
+                    updatePrevNextButtons();
+                }
+            };
+
+            // Fonction pour aller au mot suivant
+            const goToNextWord = () => {
+                if (state.historyPosition < state.wordHistory.length - 1) {
+                    // Naviguer dans l'historique
+                    state.historyPosition++;
+                    const nextWordData = state.wordHistory[state.historyPosition];
+                    state.currentWordIndex = nextWordData.wordIndex;
+                    state.currentQuestion = { ...nextWordData.question };
+                    renderExercise();
+                } else {
+                    // Générer un nouveau mot
+                    startNextExercise();
+                }
+                updatePrevNextButtons();
+            };
+
+            // Mise à jour de la visibilité des boutons précédent/suivant
+            const updatePrevNextButtons = () => {
+                if (state.historyPosition > 0) {
+                    prevBtn.classList.remove('hidden');
+                } else {
+                    prevBtn.classList.add('hidden');
+                }
+            };
+
+            // Ajouter un mot à l'historique
+            const addToHistory = (wordIndex, question) => {
+                // Supprimer tout l'historique après la position actuelle
+                state.wordHistory = state.wordHistory.slice(0, state.historyPosition + 1);
+                
+                // Ajouter le nouveau mot
+                state.wordHistory.push({
+                    wordIndex: wordIndex,
+                    question: { ...question }
+                });
+                
+                state.historyPosition = state.wordHistory.length - 1;
+                updatePrevNextButtons();
+            };
 
             // Gestion des onglets
             const switchTab = (tabName) => {
@@ -705,6 +813,8 @@
                 if (confirm('Êtes-vous sûr de vouloir recommencer la session à zéro ?')) {
                     state.sessionMistakes = [];
                     state.sessionCorrect = [];
+                    state.wordHistory = [];
+                    state.historyPosition = -1;
                     state.twoMinuteWarningShown = false;
                     sessionTimerContainer.classList.remove('warning');
                     resetSessionStats();
@@ -1084,6 +1194,10 @@
                         state.currentQuestion.type = 'flashcard-es-fr';
                     }
                 }
+                
+                // Ajouter à l'historique seulement pour les nouveaux mots
+                addToHistory(state.currentWordIndex, state.currentQuestion);
+                
                 renderExercise();
             };
             
@@ -1256,9 +1370,6 @@
                     nextBtn.classList.remove('hidden');
                     nextBtn.focus();
                     
-                    // 🔧 FIX: Ne pas retourner la carte quand c'est correct
-                    // (Anciennement on avait : exerciseContainer.querySelector('.card')?.classList.add('is-flipped'))
-                    
                 } else {
                     word.count = 0;
                     state.sessionStats.incorrect++;
@@ -1304,6 +1415,8 @@
             const restartApp = () => {
                 state.sessionMistakes = []; // Reset des erreurs de session
                 state.sessionCorrect = []; // Reset des mots corrects de session
+                state.wordHistory = []; // Reset de l'historique
+                state.historyPosition = -1;
                 resetSessionStats(); // Reset des statistiques
                 renderDashboard();
                 startNextExercise();
@@ -1324,7 +1437,9 @@
                 await fetchAndParseSheet(GOOGLE_SHEET_URL);
             };
             
-            nextBtn.addEventListener('click', startNextExercise);
+            // Event listeners pour les boutons
+            nextBtn.addEventListener('click', goToNextWord);
+            prevBtn.addEventListener('click', goToPreviousWord);
             loadSheetBtn.addEventListener('click', () => { if (sheetUrlInput.value.trim()) fetchAndParseSheet(sheetUrlInput.value.trim()); });
             resetSessionBtn.addEventListener('click', resetSession);
             toggleWordsTableBtn.addEventListener('click', toggleWordsTable);
@@ -1398,19 +1513,8 @@
                 });
             });
 
-            // Gestionnaire d'événements pour la touche Entrée - CORRIGÉ
-            document.addEventListener('keyup', (event) => {
-                if (event.key !== 'Enter') return;
-                
-                // Si le bouton "Mot Suivant" est visible, l'activer
-                if (!nextBtn.classList.contains('hidden')) {
-                    nextBtn.click();
-                }
-                // Sinon, si l'input est actif et le bouton "Vérifier" est visible, vérifier la réponse
-                else if (document.activeElement === answerInput && !checkBtn.classList.contains('hidden')) {
-                    checkBtn.click();
-                }
-            });
+            // ⌨️ AJOUT DU GESTIONNAIRE DE CLAVIER
+            document.addEventListener('keydown', handleKeyboard);
             
             init();
         });
