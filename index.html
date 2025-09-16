@@ -114,6 +114,10 @@
             font-weight: bold;
             font-size: 1.1rem;
         }
+        .timer.warning {
+            color: #dc2626 !important;
+            animation: pulse 1s infinite;
+        }
         .filter-btn {
             border: 1px solid #d1d5db;
             padding: 0.4rem 0.8rem;
@@ -160,10 +164,6 @@
         }
         .collapsible-content.open {
             max-height: 500px;
-        }
-        .session-timer.warning {
-            color: #dc2626 !important;
-            animation: pulse 1s infinite;
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -301,6 +301,22 @@
             color: #3b82f6;
             background-color: #f3f4f6;
         }
+        .session-ended-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 3rem 4rem;
+            border-radius: 1.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+            z-index: 60;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            text-align: center;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 p-4 sm:p-6 md:p-8 min-h-screen flex flex-col">
@@ -396,6 +412,7 @@
                 </div>
                 <div class="flex gap-2 mt-2 justify-center">
                     <button id="clear-date-filter-modal" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer filtres</button>
+                    <button id="sort-by-date" class="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">📅 Trier par date ↓</button>
                 </div>
             </div>
 
@@ -448,20 +465,6 @@
                     <button id="review-filter-btn" class="filter-btn">🎯 Réviser uniquement les mots à réviser</button>
                     <button id="correct-filter-btn" class="filter-btn">✅ Réviser uniquement les mots corrects</button>
                     <button id="custom-filter-btn" class="filter-btn">⭐ Réviser uniquement mes mots choisis</button>
-                </div>
-
-                <!-- Filtre par date -->
-                <div class="filter-controls">
-                    <div class="flex flex-wrap items-center justify-center gap-4">
-                        <div class="flex items-center gap-2">
-                            <label for="date-filter" class="text-sm font-medium text-gray-700">📅 Filtrer par date :</label>
-                            <select id="date-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white">
-                                <option value="">Toutes les dates</option>
-                            </select>
-                            <button id="clear-date-filter" class="px-3 py-2 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-600">Effacer</button>
-                        </div>
-                        <button id="sort-by-date" class="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">📅 Trier par date ↓</button>
-                    </div>
                 </div>
 
                 <!-- Aide clavier -->
@@ -584,7 +587,7 @@
 
     <!-- Pied de page -->
     <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>Version 2.9 - 15/01/2025 17:30 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
+        <p>Version 3.0 - 15/01/2025 18:00 | Développé par <strong>David LOPEZ</strong> | École <strong>IMAC</strong></p>
     </footer>
 
     <script>
@@ -623,9 +626,11 @@
                 customFilter: false, // Filtre pour ne réviser que les mots choisis par l'enfant
                 sessionDuration: 0, // Durée de session en minutes
                 sessionEndTime: null,
+                timeRemaining: 0, // Temps restant en secondes
                 twoMinuteWarningShown: false,
                 isFirstSession: true, // Pour savoir si c'est la première session
                 ctrlPressed: false, // Pour gérer la touche Ctrl
+                sessionEnded: false, // Pour savoir si la session est terminée
             };
 
             const exerciseContainer = document.getElementById('exercise-container');
@@ -656,8 +661,6 @@
             const wordsTableBody = document.getElementById('words-table-body');
             
             // Éléments pour les dates
-            const dateFilterSelect = document.getElementById('date-filter');
-            const clearDateFilterBtn = document.getElementById('clear-date-filter');
             const sortByDateBtn = document.getElementById('sort-by-date');
             const dateFilterModalSelect = document.getElementById('date-filter-modal');
             const examDateFilterModalSelect = document.getElementById('exam-date-filter-modal');
@@ -715,6 +718,29 @@
                 }
             };
 
+            // Affichage de la popup de fin de session
+            const showSessionEndedPopup = () => {
+                const popup = document.createElement('div');
+                popup.className = 'session-ended-popup';
+                popup.innerHTML = `
+                    <div class="mb-4">
+                        <div class="text-6xl mb-4">🎉</div>
+                        <div class="text-2xl font-bold mb-2">Félicitations !</div>
+                        <div class="text-lg mb-4">Session terminée avec succès</div>
+                        <div class="text-sm opacity-90 mb-6">
+                            Tu as révisé ${state.sessionStats.total} mots<br>
+                            ${state.sessionStats.correct} correctes • ${state.sessionStats.incorrect} incorrectes
+                        </div>
+                    </div>
+                    <button onclick="this.parentElement.remove(); state.sessionEnded = false;" 
+                            class="bg-white text-green-600 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition-colors">
+                        Continuer la révision
+                    </button>
+                `;
+                document.body.appendChild(popup);
+                state.sessionEnded = true;
+            };
+
             // Fonctions utilitaires pour les dates
             const parseDate = (dateString) => {
                 if (!dateString) return null;
@@ -769,7 +795,6 @@
                     });
                 };
 
-                updateSelect(dateFilterSelect, state.availableDates);
                 updateSelect(dateFilterModalSelect, state.availableDates);
                 updateSelect(examDateFilterModalSelect, state.availableExamDates);
             };
@@ -889,11 +914,12 @@
 
             // ⌨️ NOUVELLE GESTION DES RACCOURCIS CLAVIER (CTRL au lieu d'espace)
             const handleKeyboard = (event) => {
-                // Ignorer si on est dans un modal
+                // Ignorer si on est dans un modal ou si la session est terminée
                 if (!sessionDurationModal.classList.contains('hidden') || 
                     !sheetErrorModal.classList.contains('hidden') ||
                     !sheetManagementModal.classList.contains('hidden') ||
-                    !wordsManagementModal.classList.contains('hidden')) {
+                    !wordsManagementModal.classList.contains('hidden') ||
+                    state.sessionEnded) {
                     return;
                 }
 
@@ -987,32 +1013,9 @@
                 updatePrevNextButtons();
             };
 
-            // Gestion des filtres de date pour les exercices
-            dateFilterSelect.addEventListener('change', (e) => {
-                state.dateFilter = e.target.value || null;
-                // Synchroniser avec l'autre select
-                dateFilterModalSelect.value = e.target.value;
-                renderWordsListModal();
-                renderWordsTable();
-                renderDashboard();
-            });
-
-            clearDateFilterBtn.addEventListener('click', () => {
-                dateFilterSelect.value = '';
-                dateFilterModalSelect.value = '';
-                examDateFilterModalSelect.value = '';
-                state.dateFilter = null;
-                state.examDateFilter = null;
-                renderWordsListModal();
-                renderWordsTable();
-                renderDashboard();
-            });
-
             // Gestion des filtres de date pour le modal
             dateFilterModalSelect.addEventListener('change', (e) => {
                 state.dateFilter = e.target.value || null;
-                // Synchroniser avec l'autre select
-                dateFilterSelect.value = e.target.value;
                 renderWordsListModal();
                 renderWordsTable();
                 renderDashboard();
@@ -1026,7 +1029,6 @@
             });
 
             clearDateFilterModalBtn.addEventListener('click', () => {
-                dateFilterSelect.value = '';
                 dateFilterModalSelect.value = '';
                 examDateFilterModalSelect.value = '';
                 state.dateFilter = null;
@@ -1157,10 +1159,14 @@
 
             const setSessionDuration = (minutes) => {
                 state.sessionDuration = minutes;
+                state.timeRemaining = minutes * 60; // Convertir en secondes
                 state.sessionEndTime = Date.now() + (minutes * 60 * 1000);
                 state.twoMinuteWarningShown = false;
                 hideSessionDurationModal();
-                startTimer();
+                
+                // Afficher le modal de sélection des mots après la durée
+                renderWordsListModal();
+                wordsManagementModal.classList.remove('hidden');
             };
 
             // Event listeners pour la modal de durée
@@ -1192,6 +1198,7 @@
                 }
             });
 
+            // Fonction pour démarrer le minuteur (compte à rebours)
             const startTimer = () => {
                 if (!state.sessionStats.startTime) {
                     state.sessionStats.startTime = Date.now();
@@ -1200,28 +1207,23 @@
                 if (timerInterval) clearInterval(timerInterval);
                 
                 timerInterval = setInterval(() => {
-                    const now = Date.now();
-                    const elapsed = Math.floor((now - state.sessionStats.startTime) / 1000);
-                    const minutes = Math.floor(elapsed / 60);
-                    const seconds = elapsed % 60;
+                    if (state.timeRemaining <= 0) {
+                        clearInterval(timerInterval);
+                        showSessionEndedPopup();
+                        sessionTimerContainer.classList.add('warning');
+                        return;
+                    }
+                    
+                    state.timeRemaining--;
+                    const minutes = Math.floor(state.timeRemaining / 60);
+                    const seconds = state.timeRemaining % 60;
                     sessionTimer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                     
-                    // Vérifier l'alerte 2 minutes avant la fin
-                    if (state.sessionEndTime && !state.twoMinuteWarningShown) {
-                        const timeLeft = state.sessionEndTime - now;
-                        const minutesLeft = Math.floor(timeLeft / (1000 * 60));
-                        
-                        if (minutesLeft <= 2 && minutesLeft > 0) {
-                            state.twoMinuteWarningShown = true;
-                            sessionTimerContainer.classList.add('warning');
-                            alert(`⏰ Plus que ${minutesLeft} minute(s) restante(s) dans votre session !`);
-                        }
-                        
-                        if (timeLeft <= 0) {
-                            clearInterval(timerInterval);
-                            alert('🎉 Session terminée ! Bravo pour votre travail !');
-                            sessionTimerContainer.classList.add('warning');
-                        }
+                    // Alerte 2 minutes avant la fin
+                    if (state.timeRemaining <= 120 && !state.twoMinuteWarningShown) {
+                        state.twoMinuteWarningShown = true;
+                        sessionTimerContainer.classList.add('warning');
+                        alert('⏰ Plus que 2 minutes restantes dans votre session !');
                     }
                 }, 1000);
             };
@@ -1244,9 +1246,6 @@
                     startTime: Date.now()
                 };
                 updateSessionStats();
-                if (state.sessionEndTime) {
-                    startTimer();
-                }
             };
 
             const resetSession = () => {
@@ -1256,11 +1255,12 @@
                     state.wordHistory = [];
                     state.historyPosition = -1;
                     state.twoMinuteWarningShown = false;
+                    state.sessionEnded = false;
                     sessionTimerContainer.classList.remove('warning');
                     resetSessionStats();
+                    if (timerInterval) clearInterval(timerInterval);
                     showSessionDurationModal();
                     renderDashboard();
-                    startNextExercise();
                 }
             };
 
@@ -1931,6 +1931,7 @@
                 resetSessionStats(); // Reset des statistiques
                 renderDashboard();
                 startNextExercise();
+                startTimer(); // Démarrer le minuteur
             };
 
             const init = async () => {
